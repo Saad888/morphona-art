@@ -22,9 +22,11 @@ jobs:
         run: |
           cd packages/frontend 
           npm install
+        working-directory: packages/frontend
 
       - name: Build project
         run: npm run build  # Assuming you use `npm run build` for your React app
+        working-directory: packages/frontend
 
       - name: Deploy to S3
         uses: jakejarvis/s3-sync-action@v0.5.1
