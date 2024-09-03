@@ -24,7 +24,7 @@ jobs:
 
       - name: Zip the Lambda function
         run: zip -r function.zip .
-        working-directory: packages/frontend
+        working-directory: packages/api
 
       - name: Deploy to AWS Lambda
         env:
@@ -34,4 +34,4 @@ jobs:
         run: |
           aws lambda update-function-code --function-name ${{ secrets.AWS_API_LAMBDA_NAME }} \
             --zip-file fileb://function.zip
-        working-directory: packages/frontend
+        working-directory: packages/api
