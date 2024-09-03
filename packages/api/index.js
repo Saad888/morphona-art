@@ -9,6 +9,7 @@ const BUCKET_NAME = process.env.BUCKET_NAME ?? '';
 const TABLE_NAME = process.env.TABLE_NAME ?? '';
 
 exports.handler = async (event) => {
+  console.log(event)
   const method = event.httpMethod;
   if (BUCKET_NAME == '' || TABLE_NAME == '') {
     throw new Error('BUCKET_NAME and TABLE_NAME environment variables are required');
