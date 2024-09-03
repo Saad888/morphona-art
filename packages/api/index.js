@@ -1,5 +1,6 @@
-import AWS from 'aws-sdk';
-import {v4 as uuid} from 'uuid';
+const { v4: uuid } = require('uuid');
+const AWS = require('aws-sdk');
+
 
 const s3 = new AWS.S3();
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
