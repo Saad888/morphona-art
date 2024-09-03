@@ -3,6 +3,7 @@ import { CognitoUserPool, AuthenticationDetails, CognitoUser } from 'amazon-cogn
 const poolData = {
   UserPoolId: 'us-west-2_HXZqyoWJi', // Your User Pool ID
   ClientId: 'ucqrprceub4br8i32s2tfi54d', // Your App Client ID
+  storage: window.localStorage
 };
 
 const userPool = new CognitoUserPool(poolData);
@@ -32,16 +33,15 @@ export const logout = (onLogout) => {
 
 export const isUserAuthenticated = () => {
     const user = userPool.getCurrentUser();
-
+    let isAuthenticated = false
     if (user) {
       user.getSession((err, session) => {
         if (err || !session.isValid()) {
-          return false
+          isAuthenticated = false
         } else {
-          return true
+          isAuthenticated = true
         }
       });
-    } else {
-      return false
     }
+    return isAuthenticated
 }

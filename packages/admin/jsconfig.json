@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
+    "moduleResolution": "node",
     "target": "ES6"
   },
-  "include": ["./src/**/*"]
+  "exclude": [
+    "node_modules"
+  ]
 }

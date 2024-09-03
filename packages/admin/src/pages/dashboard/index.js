@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from 'semantic-ui-react';
 import 'semantic-ui-css/semantic.min.css';
 import { logout } from '../../services/cognito';
+import { NavButton } from '../../common/navButton.js';
 
 export const Dashboard = ({ onLogout }) => {
     const handleLogout = () => {
@@ -15,6 +16,7 @@ export const Dashboard = ({ onLogout }) => {
             <Button color="red" onClick={handleLogout}>
                 Logout
             </Button>
+            <NavButton color="blue" href="/create" >Create</NavButton>
         </div>
     );
 };
