@@ -11,10 +11,7 @@ const TABLE_NAME = process.env.TABLE_NAME ?? '';
 exports.handler = async (event) => {
   const method = event.httpMethod;
   if (BUCKET_NAME == '' || TABLE_NAME == '') {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Environment variables not set' }),
-    };
+    throw new Error('BUCKET_NAME and TABLE_NAME environment variables are required');
   }
 
   if (method === 'GET') {
@@ -26,10 +23,7 @@ exports.handler = async (event) => {
   } else if (method === 'DELETE') {
     return handleDelete();
   } else {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
+    throw new Error(`Unsupported method "${method}"`);
   }
 };
 
