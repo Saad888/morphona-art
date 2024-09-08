@@ -1,6 +1,8 @@
 const { v4: uuid } = require('uuid');
 const AWS = require('aws-sdk');
+console.log("DsFSADSA")
 const Jimp = require('jimp');
+console.log("AFTER JOMP")
 
 const s3 = new AWS.S3();
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
