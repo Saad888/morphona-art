@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Image, Loader, Input, Form } from 'semantic-ui-react';
+import { Button, Image, Loader, Input, Form, Segment } from 'semantic-ui-react';
 import 'semantic-ui-css/semantic.min.css';
 import { logout } from '../../services/cognito';
 import { NavButton } from '../../common/navButton.js';
@@ -10,16 +10,16 @@ export const Dashboard = ({ onLogout }) => {
     const [loading, setLoading] = useState(false);
     const [editMode, setEditMode] = useState(null); // Track which entry is in edit mode
     const [editedData, setEditedData] = useState({ name: '', dateCreated: '' });
+    console.log(entries)
 
     const handleLogout = () => {
-      logout(onLogout);
+        logout(onLogout);
     };
 
     useEffect(() => {
         const getImageData = async () => {
             setLoading(true);
             const result = await getImages();
-            console.log(result)
             setEntries(result.sort((a, b) => b.order - a.order)); // Sort entries by order DESC
             setLoading(false);
         };
@@ -64,25 +64,55 @@ export const Dashboard = ({ onLogout }) => {
     };
 
     return (
-        <div style={{ maxWidth: 600, margin: '0 auto', paddingTop: '100px' }}>
-            <h2>Dashboard</h2>
-            <p>Welcome to your dashboard!</p>
-            <Button color="red" onClick={handleLogout}>
-                Logout
-            </Button>
-            <NavButton color="blue" href="/create">
-                Create
-            </NavButton>
-            {loading && <Loader active>Loading...</Loader>}
+        <div style={{ maxWidth: 800, margin: '0 auto', paddingTop: '50px', position: 'relative' }}>
+            {loading && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                        zIndex: 1000,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}
+                >
+                    <Loader active size="large">Loading...</Loader>
+                </div>
+            )}
+            <h2 style={{ textAlign: 'center' }}>Dashboard</h2>
+            <p style={{ textAlign: 'center' }}>Welcome to your dashboard!</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <Button color="red" onClick={handleLogout}>
+                    Logout
+                </Button>
+                <NavButton color="blue" href="/create">
+                    Create
+                </NavButton>
+            </div>
 
             <div>
-                {entries.map((entry) => (
-                    <div key={entry.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+                {entries.map((entry, index) => (
+                    <Segment
+                        key={entry.id}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '20px',
+                            marginBottom: '15px',
+                            border: '1px solid #ddd',
+                            borderRadius: '8px',
+                        }}
+                    >
+                        <div style={{ marginRight: '20px', fontWeight: 'bold' }}>{index + 1}</div>
                         <div style={{ marginRight: '10px' }}>
                             <Image
                                 src={entry.url}
                                 size="small"
-                                style={{ cursor: 'pointer' }}
+                                style={{ cursor: 'pointer', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
                                 onClick={() => window.open(entry.url, '_blank')}
                             />
                         </div>
@@ -93,18 +123,18 @@ export const Dashboard = ({ onLogout }) => {
                                         type="text"
                                         value={editedData.name}
                                         onChange={(e) => setEditedData({ ...editedData, name: e.target.value })}
+                                        style={{ marginBottom: '10px' }}
                                     />
                                     <Input
                                         type="date"
                                         value={editedData.dateCreated}
                                         onChange={(e) => setEditedData({ ...editedData, dateCreated: e.target.value })}
-                                        style={{ marginLeft: '10px' }}
                                     />
                                 </Form>
                             ) : (
                                 <>
-                                    <p>{entry.name}</p>
-                                    <p>{new Date(entry.dateCreated).toISOString().split('T')[0]}</p>
+                                    <p style={{ fontSize: '16px', fontWeight: 'bold', margin: '0' }}>{entry.name}</p>
+                                    <p style={{ fontSize: '14px', color: '#666' }}>{new Date(entry.dateCreated).toISOString().split('T')[0]}</p>
                                 </>
                             )}
                         </div>
@@ -112,42 +142,47 @@ export const Dashboard = ({ onLogout }) => {
                             <Button
                                 icon="arrow up"
                                 onClick={() => handleOrderChange(entry.id, entry.order + 1)}
-                                disabled={loading}
+                                disabled={loading || index === 0} // Disable if at the top
+                                size="tiny"
+                                style={{ marginBottom: '5px' }}
                             />
                             <Button
                                 icon="arrow down"
                                 onClick={() => handleOrderChange(entry.id, entry.order - 1)}
-                                disabled={loading}
+                                disabled={loading || index === entries.length - 1} // Disable if at the bottom
+                                size="tiny"
                             />
                         </div>
-                        <div style={{ marginLeft: '10px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', marginLeft: '10px', gap: '5px' }}>
                             {editMode === entry.id ? (
                                 <>
                                     <Button
                                         color="green"
                                         onClick={() => handleSaveClick(entry.id)}
                                         disabled={!editedData.name || !editedData.dateCreated || loading}
+                                        size="tiny"
                                     >
                                         Save
                                     </Button>
-                                    <Button color="grey" onClick={handleCancelEdit}>
+                                    <Button color="grey" onClick={handleCancelEdit} size="tiny">
                                         Cancel
                                     </Button>
                                 </>
                             ) : (
                                 <>
-                                    <Button color="yellow" onClick={() => handleEditClick(entry)}>
+                                    <Button color="yellow" onClick={() => handleEditClick(entry)} size="tiny">
                                         Edit
                                     </Button>
-                                    <Button color="red" onClick={() => handleDeleteClick(entry.id)}>
+                                    <Button color="red" onClick={() => handleDeleteClick(entry.id)} size="tiny">
                                         Delete
                                     </Button>
                                 </>
                             )}
                         </div>
-                    </div>
+                    </Segment>
                 ))}
             </div>
         </div>
+
     );
 };
