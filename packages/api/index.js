@@ -1,11 +1,13 @@
 const { v4: uuid } = require('uuid');
 const AWS = require('aws-sdk');
+const sharp = require('sharp');
 
 const s3 = new AWS.S3();
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 const BUCKET_NAME = process.env.BUCKET_NAME ?? '';
 const TABLE_NAME = process.env.TABLE_NAME ?? '';
+const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? '';
 
 const addCorsHeaders = (body, statusCode = 200) => ({
   statusCode,
@@ -18,8 +20,8 @@ const addCorsHeaders = (body, statusCode = 200) => ({
 });
 
 exports.handler = async (event) => {
-  if (BUCKET_NAME === '' || TABLE_NAME === '') {
-    return addCorsHeaders({ error: 'BUCKET_NAME and TABLE_NAME environment variables are required' }, 500);
+  if (BUCKET_NAME === '' || TABLE_NAME === '' || CLOUDFRONT_URL === '') {
+    return addCorsHeaders({ error: 'environment variables are required' }, 500);
   }
 
   console.log(event);
@@ -67,13 +69,32 @@ const handlePut = async (event) => {
   }
 
   const id = uuid();
-  const imageKey = `${name}-${id}`;
+  const baseImageKey = `${name}-${id}`;
+  const thumbnailKey = `${name}-${id}-thumbnail`;
 
-  // Upload image to S3
+  const buffer = Buffer.from(image, 'base64');
+
+  // Upload base image to S3
   await s3.putObject({
     Bucket: BUCKET_NAME,
-    Key: imageKey,
-    Body: Buffer.from(image, 'base64'),
+    Key: baseImageKey,
+    Body: buffer,
+    ContentType: 'image/jpeg' // or appropriate content type
+  }).promise();
+
+  // Resize image for thumbnail (max size: 1024x1024, maintaining aspect ratio)
+  const resizedImage = await sharp(buffer)
+    .resize(1024, 1024, {
+      fit: sharp.fit.inside,
+      withoutEnlargement: true
+    })
+    .toBuffer();
+
+  // Upload thumbnail to S3
+  await s3.putObject({
+    Bucket: BUCKET_NAME,
+    Key: thumbnailKey,
+    Body: resizedImage,
     ContentType: 'image/jpeg' // or appropriate content type
   }).promise();
 
@@ -81,10 +102,13 @@ const handlePut = async (event) => {
   const existingEntries = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
   const maxOrder = existingEntries.Items?.reduce((max, entry) => entry.order > max ? entry.order : max, 0) ?? 0;
 
+  const cloudFrontUrl = `https://${process.env.CLOUDFRONT_DOMAIN}`; // Add CloudFront domain from environment variable
+
   const newEntry = {
     id,
     name,
-    url: `https://${BUCKET_NAME}.s3.amazonaws.com/${imageKey}`,
+    url: `${cloudFrontUrl}/${baseImageKey}`,  // CloudFront URL for the original image
+    thumbnailUrl: `${cloudFrontUrl}/${thumbnailKey}`,  // CloudFront URL for the thumbnail
     dateCreated,
     order: maxOrder + 1
   };

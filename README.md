@@ -12,16 +12,9 @@ Updating the password for an admin account: aws cognito-idp admin-set-user-passw
 All aws resources are on my @live account
 
 To Do:
-- Create dynamo db table for metadata
-- Create s3 bucket for files
-- Create basic create page 
-    - Create lambda to handle upload
-    - Create api gateway attached to lambda
-    - Create authentication on api gateway
-    - Create File thumbnail maker on lambda
-- Create list page
-- Create edit page
-- Create delete endpoint
-- Deploy admin portal and all done
+- Update the upload link to create a thumbnail version and store the image 
+- Add in CLoudFront for CDNs
+- Update the actual sites or something to use the CDN
+
 
 - Front End: create everything lol
