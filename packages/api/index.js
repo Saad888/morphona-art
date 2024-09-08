@@ -7,51 +7,53 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const BUCKET_NAME = process.env.BUCKET_NAME ?? '';
 const TABLE_NAME = process.env.TABLE_NAME ?? '';
 
+const addCorsHeaders = (body, statusCode = 200) => ({
+  statusCode,
+  headers: {
+    'Access-Control-Allow-Origin': '*',  // Allow any origin
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,PATCH,OPTIONS'
+  },
+  body: JSON.stringify(body)
+});
+
 exports.handler = async (event) => {
   if (BUCKET_NAME === '' || TABLE_NAME === '') {
-    throw new Error('BUCKET_NAME and TABLE_NAME environment variables are required');
+    return addCorsHeaders({ error: 'BUCKET_NAME and TABLE_NAME environment variables are required' }, 500);
   }
-  console.log(event)
+
+  console.log(event);
 
   const method = event.httpMethod; 
   const path = event.path; 
   console.log(`Handling ${method} request for path: ${path}`);
 
   if (method === 'GET' && path === '/entries') {
-    return await handleGet();
+    return addCorsHeaders(await handleGet());
   } else if (method === 'PUT' && path === '/entries') {
-    return await handlePut(event);
+    return addCorsHeaders(await handlePut(event));
   } else if (method === 'POST' && path.startsWith('/entries/')) {
     const id = path.split('/').pop(); 
-    return await handlePost(event, id);
+    return addCorsHeaders(await handlePost(event, id));
   } else if (method === 'DELETE' && path.startsWith('/entries/')) {
     const id = path.split('/').pop(); 
-    return await handleDelete(id);
+    return addCorsHeaders(await handleDelete(id));
   } else if (method === 'POST' && path === '/publish') {
-    return await handlePublish();
+    return addCorsHeaders(await handlePublish());
   } else {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'Invalid request method or path' }),
-    };
+    return addCorsHeaders({ error: 'Invalid request method or path' }, 400);
   }
 };
 
 const handleGet = async () => {
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: 'GET request for /entries' }),
-  };
+  return { message: 'GET request for /entries' };
 };
 
 const handlePost = async (event, id) => {
   const { name, description } = JSON.parse(event.body);
 
   if (!id || !name || !description) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'ID, name, and description are required' }),
-    };
+    return { error: 'ID, name, and description are required' };
   }
 
   try {
@@ -68,24 +70,15 @@ const handlePost = async (event, id) => {
 
     await dynamoDb.update(params).promise();
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ id, name, description }),
-    };
+    return { id, name, description };
   } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Could not update entry' }),
-    };
+    return { error: 'Could not update entry' };
   }
 };
 
 const handleDelete = async (id) => {
   if (!id) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'ID is required' }),
-    };
+    return { error: 'ID is required' };
   }
 
   try {
@@ -98,10 +91,7 @@ const handleDelete = async (id) => {
     const item = result.Item;
 
     if (!item) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ error: 'Item not found' }),
-      };
+      return { error: 'Item not found' };
     }
 
     const deleteParams = {
@@ -121,15 +111,9 @@ const handleDelete = async (id) => {
 
     await s3.deleteObject(s3Params).promise();
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: 'Item and image deleted successfully' }),
-    };
+    return { message: 'Item and image deleted successfully' };
   } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Could not delete entry' }),
-    };
+    return { error: 'Could not delete entry' };
   }
 };
 
@@ -137,10 +121,7 @@ const handlePut = async (event) => {
   const { name, description, image } = JSON.parse(event.body);
 
   if (!name || !description || !image) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'Name, description, and image are required' }),
-    };
+    return { error: 'Name, description, and image are required' };
   }
 
   const id = uuid();
@@ -181,15 +162,9 @@ const handlePut = async (event) => {
 
     await dynamoDb.update(updateParams).promise();
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ id, name, description, imageUrl }),
-    };
+    return { id, name, description, imageUrl };
   } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Could not create entry' }),
-    };
+    return { error: 'Could not create entry' };
   }
 };
 
@@ -213,14 +188,8 @@ const handlePublish = async () => {
 
     await s3.putObject(s3Params).promise();
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: 'Metadata successfully published to S3 as data.json' }),
-    };
+    return { message: 'Metadata successfully published to S3 as data.json' };
   } catch (error) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Could not publish metadata to S3' }),
-    };
+    return { error: 'Could not publish metadata to S3' };
   }
 };
