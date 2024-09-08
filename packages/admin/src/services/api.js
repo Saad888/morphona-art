@@ -38,7 +38,7 @@ export const getImages = async() => {
       throw new Error('Failed to get images');
     }
 
-    return await response.json();
+    return (await response.json()).entries ?? [];
   } catch (error) {
     console.error('Error getting images:', error);
     throw error;

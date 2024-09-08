@@ -79,7 +79,7 @@ const handlePut = async (event) => {
 
   // Get the current entries to determine the largest order
   const existingEntries = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
-  const maxOrder = existingEntries.Items?.reduce((max, entry) => entry.order > max ? entry.order : max, 0) ?? -1;
+  const maxOrder = existingEntries.Items?.reduce((max, entry) => entry.order > max ? entry.order : max, 0) ?? 0;
 
   const newEntry = {
     id,
@@ -178,7 +178,7 @@ const handlePost = async (event) => {
       .sort((a, b) => a.order - b.order)
       .map((item, index) => ({
         ...item,
-        order: index + (index + 1 === order ? 2 : 1)
+        order: index + 1 < order ? index + 1 : index + 2
       })) ?? [];
 
     for (let entry of updatedEntries) {

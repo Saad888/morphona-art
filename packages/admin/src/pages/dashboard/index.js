@@ -20,7 +20,7 @@ export const Dashboard = ({ onLogout }) => {
             setLoading(true);
             const result = await getImages();
             console.log(result)
-            setEntries(result.entries.sort((a, b) => b.order - a.order)); // Sort entries by order DESC
+            setEntries(result.sort((a, b) => b.order - a.order)); // Sort entries by order DESC
             setLoading(false);
         };
         getImageData();
@@ -30,7 +30,7 @@ export const Dashboard = ({ onLogout }) => {
         setLoading(true);
         await updateImage(id, { order: newOrder });
         const result = await getImages();
-        setEntries(result.entries.sort((a, b) => b.order - a.order));
+        setEntries(result.sort((a, b) => b.order - a.order));
         setLoading(false);
     };
 
@@ -43,7 +43,7 @@ export const Dashboard = ({ onLogout }) => {
         setLoading(true);
         await updateImage(id, { name: editedData.name, dateCreated: editedData.dateCreated });
         const result = await getImages();
-        setEntries(result.entries.sort((a, b) => b.order - a.order));
+        setEntries(result.sort((a, b) => b.order - a.order));
         setEditMode(null); // Exit edit mode
         setLoading(false);
     };
@@ -104,7 +104,7 @@ export const Dashboard = ({ onLogout }) => {
                             ) : (
                                 <>
                                     <p>{entry.name}</p>
-                                    <p>{new Date(entry.dateCreated).toLocaleDateString()}</p>
+                                    <p>{new Date(entry.dateCreated).toISOString().split('T')[0]}</p>
                                 </>
                             )}
                         </div>
