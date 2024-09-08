@@ -1,6 +1,6 @@
 const { v4: uuid } = require('uuid');
 const AWS = require('aws-sdk');
-const sharp = require('sharp');
+const Jimp = require('jimp');
 
 const s3 = new AWS.S3();
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
@@ -82,13 +82,15 @@ const handlePut = async (event) => {
     ContentType: 'image/jpeg' // or appropriate content type
   }).promise();
 
-  // Resize image for thumbnail (max size: 1024x1024, maintaining aspect ratio)
-  const resizedImage = await sharp(buffer)
-    .resize(1024, 1024, {
-      fit: sharp.fit.inside,
-      withoutEnlargement: true
-    })
-    .toBuffer();
+  // Resize image for thumbnail using Jimp (max size: 1024x1024, maintaining aspect ratio)
+  // @ts-ignore
+  const resizedImage = await Jimp.read(buffer)
+    .then(img => {
+      return img
+        .scaleToFit(1024, 1024) // Resize to fit within 1024x1024, preserving aspect ratio
+        // @ts-ignore
+        .getBufferAsync(Jimp.MIME_JPEG); // Get buffer in JPEG format
+    });
 
   // Upload thumbnail to S3
   await s3.putObject({
@@ -123,6 +125,7 @@ const handlePut = async (event) => {
 
   return { message: 'Entry created successfully', entry: newEntry };
 };
+
 
 // Handle DELETE: Delete entry and image from S3
 const handleDelete = async (event) => {
