@@ -1,8 +1,6 @@
 const { v4: uuid } = require('uuid');
 const AWS = require('aws-sdk');
-console.log("DsFSADSA")
-const Jimp = require('jimp');
-console.log("AFTER JOMP")
+const sharp = require('sharp');
 
 const s3 = new AWS.S3();
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
@@ -64,13 +62,14 @@ const handleGet = async () => {
 };
 
 // Handle PUT: Create a new entry with image upload to S3
+// Handle PUT: Create a new entry with image upload to S3
 const handlePut = async (event) => {
-  console.log("Starting PUT")
+  console.log("Starting PUT");
   const formData = JSON.parse(event.body);
   const { name, dateCreated, image } = formData;
 
   // Parameter validation
-  console.log("Validating parameters")
+  console.log("Validating parameters");
   if (!name || !dateCreated) {
     return { error: 'Name and dateCreated are required' };
   }
@@ -78,14 +77,14 @@ const handlePut = async (event) => {
     return { error: 'Image is required for creating an entry' };
   }
 
-  console.log("Creating new entry")
+  console.log("Creating new entry");
   const id = uuid();
   const baseImageKey = `${name}-${id}`;
   const thumbnailKey = `${name}-${id}-thumbnail`;
 
   const buffer = Buffer.from(image, 'base64');
 
-  console.log("Uploading image to S3")
+  console.log("Uploading base image to S3");
   // Upload base image to S3
   await s3.putObject({
     Bucket: BUCKET_NAME,
@@ -94,14 +93,14 @@ const handlePut = async (event) => {
     ContentType: 'image/jpeg' // or appropriate content type
   }).promise();
 
-  console.log("Resizing image for thumbnail")
-  // Resize image for thumbnail using Jimp (max size: 1024x1024, maintaining aspect ratio)
+  console.log("Resizing image for thumbnail");
+  // Resize image for thumbnail using Sharp (max size: 1024x1024, maintaining aspect ratio)
   try {
+    const resizedImage = await sharp(buffer)
+      .resize({ width: 1024, height: 1024, fit: 'inside' }) // Resize image to fit within 1024x1024
+      .toBuffer();
 
-    const img = await Jimp.read(buffer);
-    img.scaleToFit(1024, 1024);
-    const resizedImage = await img.getBufferAsync(Jimp.MIME_JPEG);
-    console.log("Uploading thumbnail to S3")
+    console.log("Uploading thumbnail to S3");
     // Upload thumbnail to S3
     await s3.putObject({
       Bucket: BUCKET_NAME,
@@ -111,17 +110,16 @@ const handlePut = async (event) => {
     }).promise();
 
   } catch (error) {
-    console.log("Error resizing image", error)
+    console.log("Error resizing image", error);
     return { error: 'Error resizing image' };
   }
 
-
-  console.log("Getting existing entries")
+  console.log("Getting existing entries");
   // Get the current entries to determine the largest order
   const existingEntries = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
   const maxOrder = existingEntries.Items?.reduce((max, entry) => entry.order > max ? entry.order : max, 0) ?? 0;
 
-  console.log("Creating new entry object")
+  console.log("Creating new entry object");
   const newEntry = {
     id,
     name,
@@ -131,7 +129,7 @@ const handlePut = async (event) => {
     order: maxOrder + 1
   };
 
-  console.log("Saving new entry to DynamoDB")
+  console.log("Saving new entry to DynamoDB");
   // Save new entry to DynamoDB
   const params = {
     TableName: TABLE_NAME,
