@@ -24,8 +24,8 @@ exports.handler = async (event) => {
 
   console.log(event);
 
-  const method = event.httpMethod; 
-  const path = event.path; 
+  const method = event.httpMethod;
+  const path = event.path;
   console.log(`Handling ${method} request for path: ${path}`);
 
   if (method === 'GET' && path === '/entries') {
@@ -48,7 +48,7 @@ const handleGet = async () => {
   const params = {
     TableName: TABLE_NAME
   };
-  
+
   const data = await dynamoDb.scan(params).promise();
   return { entries: data.Items };
 };
@@ -96,7 +96,7 @@ const handlePut = async (event) => {
   };
 
   await dynamoDb.put(params).promise();
-  
+
   return { message: 'Entry created successfully', entry: newEntry };
 };
 
@@ -170,22 +170,14 @@ const handlePost = async (event) => {
     order: order || currentEntry.Item.order
   };
 
-  // If the order is changing, update all orders
   if (order && order !== currentEntry.Item.order) {
     const existingEntries = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
-    
-    const updatedEntries = existingEntries.Items?.filter(item => item.id !== id)
-      .sort((a, b) => a.order - b.order)
-      .map((item, index) => ({
-        ...item,
-        order: index + 1 < order ? index + 1 : index + 2
-      })) ?? [];
+    const entryWithDesiredOrder = existingEntries.Items?.find(item => item.order === order);
 
-    for (let entry of updatedEntries) {
-      await dynamoDb.put({ TableName: TABLE_NAME, Item: entry }).promise();
+    if (entryWithDesiredOrder) {
+      const swappedEntry = { ...entryWithDesiredOrder, order: currentEntry.Item.order };
+      await dynamoDb.put({ TableName: TABLE_NAME, Item: swappedEntry }).promise();
     }
-
-    updatedEntry.order = order;
   }
 
   const updateParams = {
@@ -194,7 +186,7 @@ const handlePost = async (event) => {
   };
 
   await dynamoDb.put(updateParams).promise();
-  
+
   return { message: 'Entry updated successfully', entry: updatedEntry };
 };
 
