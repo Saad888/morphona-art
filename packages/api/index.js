@@ -59,10 +59,12 @@ const handleGet = async () => {
 
 // Handle PUT: Create a new entry with image upload to S3
 const handlePut = async (event) => {
+  console.log("Starting PUT")
   const formData = JSON.parse(event.body);
   const { name, dateCreated, image } = formData;
 
   // Parameter validation
+  console.log("Validating parameters")
   if (!name || !dateCreated) {
     return { error: 'Name and dateCreated are required' };
   }
@@ -70,12 +72,14 @@ const handlePut = async (event) => {
     return { error: 'Image is required for creating an entry' };
   }
 
+  console.log("Creating new entry")
   const id = uuid();
   const baseImageKey = `${name}-${id}`;
   const thumbnailKey = `${name}-${id}-thumbnail`;
 
   const buffer = Buffer.from(image, 'base64');
 
+  console.log("Uploading image to S3")
   // Upload base image to S3
   await s3.putObject({
     Bucket: BUCKET_NAME,
@@ -84,6 +88,7 @@ const handlePut = async (event) => {
     ContentType: 'image/jpeg' // or appropriate content type
   }).promise();
 
+  console.log("Resizing image for thumbnail")
   // Resize image for thumbnail using Jimp (max size: 1024x1024, maintaining aspect ratio)
   const resizedImage = await Jimp.read(buffer)
     .then(img => {
@@ -92,6 +97,7 @@ const handlePut = async (event) => {
         .getBufferAsync(Jimp.MIME_JPEG); // Get buffer in JPEG format
     });
 
+  console.log("Uploading thumbnail to S3")
   // Upload thumbnail to S3
   await s3.putObject({
     Bucket: BUCKET_NAME,
@@ -100,21 +106,22 @@ const handlePut = async (event) => {
     ContentType: 'image/jpeg' // or appropriate content type
   }).promise();
 
+  console.log("Getting existing entries")
   // Get the current entries to determine the largest order
   const existingEntries = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
   const maxOrder = existingEntries.Items?.reduce((max, entry) => entry.order > max ? entry.order : max, 0) ?? 0;
 
-  const cloudFrontUrl = `https://${process.env.CLOUDFRONT_DOMAIN}`; // Add CloudFront domain from environment variable
-
+  console.log("Creating new entry object")
   const newEntry = {
     id,
     name,
-    url: `${cloudFrontUrl}/${baseImageKey}`,  // CloudFront URL for the original image
-    thumbnailUrl: `${cloudFrontUrl}/${thumbnailKey}`,  // CloudFront URL for the thumbnail
+    url: `${CLOUDFRONT_URL}/${baseImageKey}`,  // CloudFront URL for the original image
+    thumbnailUrl: `${CLOUDFRONT_URL}/${thumbnailKey}`,  // CloudFront URL for the thumbnail
     dateCreated,
     order: maxOrder + 1
   };
 
+  console.log("Saving new entry to DynamoDB")
   // Save new entry to DynamoDB
   const params = {
     TableName: TABLE_NAME,
