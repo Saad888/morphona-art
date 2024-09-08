@@ -127,6 +127,12 @@ const handlePut = async (event) => {
   const id = uuid();
   const imageKey = `${id}-${image.fileName}`;
 
+  console.log(`Uploading image to S3 with key: ${imageKey}`);
+  console.log(event)
+  console.log(name, description, image)
+
+  return { message: 'PUT request for /entries' };
+
   try {
     const params = {
       TableName: TABLE_NAME,
