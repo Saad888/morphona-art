@@ -3,14 +3,13 @@ import { Button, Image, Loader, Input, Form, Segment } from 'semantic-ui-react';
 import 'semantic-ui-css/semantic.min.css';
 import { logout } from '../../services/cognito';
 import { NavButton } from '../../common/navButton.js';
-import { getImages, updateImage, deleteImage } from '../../services/api.js';
+import { getImages, updateImage, deleteImage, publishData } from '../../services/api.js';
 
 export const Dashboard = ({ onLogout }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [editMode, setEditMode] = useState(null); // Track which entry is in edit mode
     const [editedData, setEditedData] = useState({ name: '' });
-    console.log(entries)
 
     const handleLogout = () => {
         logout(onLogout);
@@ -60,7 +59,18 @@ export const Dashboard = ({ onLogout }) => {
 
     const handleCancelEdit = () => {
         setEditMode(null);
-        setEditedData({ name: ''});
+        setEditedData({ name: '' });
+    };
+
+    const handlePublishClick = async () => {
+        setLoading(true);
+        try {
+            const result = await publishData();
+            alert('Data published successfully!');
+        } catch (error) {
+            alert('Failed to publish data');
+        }
+        setLoading(false);
     };
 
     return (
@@ -92,6 +102,9 @@ export const Dashboard = ({ onLogout }) => {
                 <NavButton color="blue" href="/create">
                     Create
                 </NavButton>
+                <Button color="green" onClick={handlePublishClick}>
+                    Publish
+                </Button>
             </div>
 
             <div>

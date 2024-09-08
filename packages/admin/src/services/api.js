@@ -92,3 +92,27 @@ export const deleteImage = async (id) => {
     throw error;
   }
 };
+
+
+// Function to trigger publishing data to S3 as a minified JSON
+export const publishData = async () => {
+  try {
+    const idToken = await getIdToken();
+
+    const response = await fetch(`${URL}/publish`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to publish data');
+    }
+
+    return await response.json();  // Assuming the API returns a success message
+  } catch (error) {
+    console.error('Error publishing data:', error);
+    throw error;
+  }
+};
