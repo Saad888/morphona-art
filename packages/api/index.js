@@ -83,12 +83,10 @@ const handlePut = async (event) => {
   }).promise();
 
   // Resize image for thumbnail using Jimp (max size: 1024x1024, maintaining aspect ratio)
-  // @ts-ignore
   const resizedImage = await Jimp.read(buffer)
     .then(img => {
       return img
         .scaleToFit(1024, 1024) // Resize to fit within 1024x1024, preserving aspect ratio
-        // @ts-ignore
         .getBufferAsync(Jimp.MIME_JPEG); // Get buffer in JPEG format
     });
 
