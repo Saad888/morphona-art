@@ -232,7 +232,37 @@ const handlePost = async (event) => {
   return { message: 'Entry updated successfully', entry: updatedEntry };
 };
 
-// Handle publish (stubbed)
+// Handle publish: Retrieve entries, minify, and save to S3 as data.json
 const handlePublish = async () => {
-  return { message: 'POST request for /publish' };
+  try {
+    // Step 1: Fetch all entries from DynamoDB
+    const params = {
+      TableName: TABLE_NAME
+    };
+
+    const data = await dynamoDb.scan(params).promise();
+    const entries = data.Items ?? [];
+
+    const minifiedEntries = entries.map(entry => ({
+      n: entry.name,              
+      i: entry.url.replace(CLOUDFRONT_URL + '/', ''),  
+      o: entry.order              
+    }));
+
+    const jsonData = JSON.stringify(minifiedEntries);
+
+    const s3Params = {
+      Bucket: BUCKET_NAME,
+      Key: 'data.json',            
+      Body: jsonData,              
+      ContentType: 'application/json' 
+    };
+
+    await s3.putObject(s3Params).promise();
+
+    return { message: 'Data published successfully', itemCount: minifiedEntries.length };
+  } catch (error) {
+    console.error('Error publishing data:', error);
+    return { error: 'Error publishing data' };
+  }
 };
