@@ -90,12 +90,9 @@ const handlePut = async (event) => {
 
   console.log("Resizing image for thumbnail")
   // Resize image for thumbnail using Jimp (max size: 1024x1024, maintaining aspect ratio)
-  const resizedImage = await Jimp.read(buffer)
-    .then(img => {
-      return img
-        .scaleToFit(1024, 1024) // Resize to fit within 1024x1024, preserving aspect ratio
-        .getBufferAsync(Jimp.MIME_JPEG); // Get buffer in JPEG format
-    });
+  const img = await Jimp.read(buffer);
+  img.scaleToFit(1024, 1024);
+  const resizedImage = await img.getBufferAsync(Jimp.MIME_JPEG);
 
   console.log("Uploading thumbnail to S3")
   // Upload thumbnail to S3
