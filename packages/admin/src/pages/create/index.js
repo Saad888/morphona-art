@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Button, TextArea, Image, Segment, Header, Icon, Dimmer, Loader } from 'semantic-ui-react';
+import { Form, Button, Image, Segment, Header, Icon, Dimmer, Loader } from 'semantic-ui-react';
 import { useNavigate } from 'react-router-dom';
 import { uploadImage } from '../../services/api.js';
 
@@ -7,7 +7,7 @@ export const CreateEntryPage = () => {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [dateCreated, setDateCreated] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -21,21 +21,25 @@ export const CreateEntryPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (image && name) {
+    if (image && name && dateCreated) {
       setLoading(true);
 
-      const formData = new FormData();
-      formData.append('name', name);
-      formData.append('description', description);
-      formData.append('image', image);
+      // Convert image to base64 string
+      const imageBase64 = await toBase64(image);
+
+      const body = {
+        name,
+        dateCreated,
+        image: imageBase64 // Add base64 image data to the JSON object
+      };
 
       try {
-        const response = await uploadImage(formData);
+        const response = await uploadImage(body);  // Send the JSON object to your API
         const result = await response.json();
         if (response.ok) {
           console.log('Upload success:', result);
           alert('Upload successful!');
-          navigate('/');  
+          navigate('/');
         } else {
           console.error('Upload failed:', result);
           alert(`Upload failed: ${result.message}`);
@@ -56,6 +60,15 @@ export const CreateEntryPage = () => {
 
   const triggerFileSelect = () => {
     document.getElementById('fileInput').click();
+  };
+
+  const toBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result.split(',')[1]); // Get base64 data without metadata prefix
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   return (
@@ -102,18 +115,18 @@ export const CreateEntryPage = () => {
           />
         </Form.Field>
         <Form.Field>
-          <label>Description</label>
-          <TextArea
-            placeholder="Enter description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+          <label>Date Created</label>
+          <input
+            type="date"
+            value={dateCreated}
+            onChange={(e) => setDateCreated(e.target.value)}
           />
         </Form.Field>
         <Button 
           type="submit" 
           primary 
           color="green"
-          disabled={!image || !name}
+          disabled={!image || !name || !dateCreated}
         >
           Submit
         </Button>

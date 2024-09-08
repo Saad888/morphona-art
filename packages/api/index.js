@@ -56,7 +56,7 @@ const handleGet = async () => {
 // Handle PUT: Create a new entry with image upload to S3
 const handlePut = async (event) => {
   const formData = JSON.parse(event.body);
-  const { name, description, dateCreated, image } = formData;
+  const { name, dateCreated, image } = formData;
 
   // Parameter validation
   if (!name || !dateCreated) {
@@ -85,7 +85,6 @@ const handlePut = async (event) => {
     id,
     name,
     url: `https://${BUCKET_NAME}.s3.amazonaws.com/${imageKey}`,
-    description,
     dateCreated,
     order: maxOrder + 1
   };
@@ -146,7 +145,7 @@ const handleDelete = async (event) => {
 
 // Handle POST: Update existing entry in DynamoDB
 const handlePost = async (event) => {
-  const { id, name, description, dateCreated, order } = JSON.parse(event.body);
+  const { id, name, dateCreated, order } = JSON.parse(event.body);
 
   // Parameter validation
   if (!id) {
@@ -176,7 +175,6 @@ const handlePost = async (event) => {
   const updatedEntry = {
     ...currentEntry.Item,
     name: name || currentEntry.Item.name,
-    description: description || currentEntry.Item.description,
     dateCreated: dateCreated || currentEntry.Item.dateCreated,
     order: order || currentEntry.Item.order
   };
