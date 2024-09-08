@@ -151,15 +151,6 @@ const handlePost = async (event) => {
   if (!id) {
     return { error: 'ID is required to update an entry' };
   }
-  if (!name) {
-    return { error: 'Name is required to update an entry' };
-  }
-  if (!order) {
-    return { error: 'Order is required to update an entry' };
-  }
-  if (!dateCreated) {
-    return { error: 'Date created is required to update an entry' };
-  }
 
   // Get the current entry
   const getParams = {

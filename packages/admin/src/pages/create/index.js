@@ -34,16 +34,9 @@ export const CreateEntryPage = () => {
       };
 
       try {
-        const response = await uploadImage(body);  // Send the JSON object to your API
-        const result = await response.json();
-        if (response.ok) {
-          console.log('Upload success:', result);
-          alert('Upload successful!');
-          navigate('/');
-        } else {
-          console.error('Upload failed:', result);
-          alert(`Upload failed: ${result.message}`);
-        }
+        await uploadImage(body);  // Send the JSON object to your API
+        alert('Upload successful!');
+        navigate('/');
       } catch (error) {
         console.error('Error during upload:', error);
         alert(`Upload failed: ${error.message}`);
@@ -80,9 +73,9 @@ export const CreateEntryPage = () => {
       <Form onSubmit={handleSubmit}>
         {!preview && (
           <Form.Field>
-            <Segment 
-              placeholder 
-              onClick={triggerFileSelect} 
+            <Segment
+              placeholder
+              onClick={triggerFileSelect}
               style={{ cursor: 'pointer', height: '500px' }}
             >
               <Header icon>
@@ -122,27 +115,27 @@ export const CreateEntryPage = () => {
             onChange={(e) => setDateCreated(e.target.value)}
           />
         </Form.Field>
-        <Button 
-          type="submit" 
-          primary 
+        <Button
+          type="submit"
+          primary
           color="green"
           disabled={!image || !name || !dateCreated}
         >
           Submit
         </Button>
-        <Button 
-          type="button" 
-          onClick={() => navigate('/')} 
+        <Button
+          type="button"
+          onClick={() => navigate('/')}
           color="red"
           style={{ marginLeft: '10px' }}
         >
           Cancel
         </Button>
-        <Button 
-          type="button" 
-          onClick={clearImage} 
-          disabled={!preview} 
-          secondary 
+        <Button
+          type="button"
+          onClick={clearImage}
+          disabled={!preview}
+          secondary
           style={{ marginLeft: '10px' }}
         >
           Clear Image
