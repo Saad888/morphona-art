@@ -31,20 +31,26 @@ exports.handler = async (event) => {
   const method = event.httpMethod;
   const path = event.path;
   console.log(`Handling ${method} request for path: ${path}`);
-
-  if (method === 'GET' && path === '/entries') {
-    return addCorsHeaders(await handleGet());
-  } else if (method === 'PUT' && path === '/entries') {
-    return addCorsHeaders(await handlePut(event));
-  } else if (method === 'POST' && path.startsWith('/entries')) {
-    return addCorsHeaders(await handlePost(event));
-  } else if (method === 'DELETE' && path.startsWith('/entries')) {
-    return addCorsHeaders(await handleDelete(event));
-  } else if (method === 'POST' && path === '/publish') {
-    return addCorsHeaders(await handlePublish());
-  } else {
-    return addCorsHeaders({ error: 'Invalid request method or path' }, 400);
+  let result = null;
+  try {
+    if (method === 'GET' && path === '/entries') {
+      result = await handleGet();
+    } else if (method === 'PUT' && path === '/entries') {
+      result = await handlePut(event);
+    } else if (method === 'POST' && path.startsWith('/entries')) {
+      result = await handlePost(event);
+    } else if (method === 'DELETE' && path.startsWith('/entries')) {
+      result = await handleDelete(event);
+    } else if (method === 'POST' && path === '/publish') {
+      result = await handlePublish();
+    } else {
+      throw new Error('Invalid request method or path');
+    }
+  } catch (error) {
+    console.error('Error handling request:', error);
+    return addCorsHeaders({ error: error.message }, 500);
   }
+  return addCorsHeaders(result);
 };
 
 // Handle GET: return all entries from DynamoDB
