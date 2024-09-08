@@ -45,3 +45,24 @@ export const isUserAuthenticated = () => {
     }
     return isAuthenticated
 }
+
+
+export const getIdToken = async () => {
+  const user = userPool.getCurrentUser();
+
+  if (!user) {
+    throw new Error('User is not authenticated');
+  }
+
+  return new Promise((resolve, reject) => {
+    user.getSession((err, session) => {
+      if (err) {
+        reject(new Error('Error retrieving session'));
+      } else if (!session.isValid()) {
+        reject(new Error('Session is not valid'));
+      } else {
+        resolve(session.getIdToken().getJwtToken());
+      }
+    });
+  });
+};

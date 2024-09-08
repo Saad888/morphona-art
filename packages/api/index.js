@@ -11,6 +11,7 @@ exports.handler = async (event) => {
   if (BUCKET_NAME === '' || TABLE_NAME === '') {
     throw new Error('BUCKET_NAME and TABLE_NAME environment variables are required');
   }
+  console.log(event)
 
   const method = event.httpMethod; 
   const path = event.path; 

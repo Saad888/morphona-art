@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Button, TextArea, Image, Segment, Header, Icon, Dimmer, Loader } from 'semantic-ui-react';
 import { useNavigate } from 'react-router-dom';
+import { uploadImage } from '../../services/api.js';
 
 export const CreateEntryPage = () => {
   const [image, setImage] = useState(null);
@@ -18,14 +19,33 @@ export const CreateEntryPage = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (image && name) {
       setLoading(true);
-      setTimeout(() => {
-        // handleUpload({ image, name, description });
+
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('description', description);
+      formData.append('image', image);
+
+      try {
+        const response = await uploadImage(formData);
+        const result = await response.json();
+        if (response.ok) {
+          console.log('Upload success:', result);
+          alert('Upload successful!');
+          navigate('/');  
+        } else {
+          console.error('Upload failed:', result);
+          alert(`Upload failed: ${result.message}`);
+        }
+      } catch (error) {
+        console.error('Error during upload:', error);
+        alert(`Upload failed: ${error.message}`);
+      } finally {
         setLoading(false);
-      }, 2000);
+      }
     }
   };
 
