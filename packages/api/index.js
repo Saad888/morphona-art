@@ -90,18 +90,25 @@ const handlePut = async (event) => {
 
   console.log("Resizing image for thumbnail")
   // Resize image for thumbnail using Jimp (max size: 1024x1024, maintaining aspect ratio)
-  const img = await Jimp.read(buffer);
-  img.scaleToFit(1024, 1024);
-  const resizedImage = await img.getBufferAsync(Jimp.MIME_JPEG);
+  try {
 
-  console.log("Uploading thumbnail to S3")
-  // Upload thumbnail to S3
-  await s3.putObject({
-    Bucket: BUCKET_NAME,
-    Key: thumbnailKey,
-    Body: resizedImage,
-    ContentType: 'image/jpeg' // or appropriate content type
-  }).promise();
+    const img = await Jimp.read(buffer);
+    img.scaleToFit(1024, 1024);
+    const resizedImage = await img.getBufferAsync(Jimp.MIME_JPEG);
+    console.log("Uploading thumbnail to S3")
+    // Upload thumbnail to S3
+    await s3.putObject({
+      Bucket: BUCKET_NAME,
+      Key: thumbnailKey,
+      Body: resizedImage,
+      ContentType: 'image/jpeg' // or appropriate content type
+    }).promise();
+
+  } catch (error) {
+    console.log("Error resizing image", error)
+    return { error: 'Error resizing image' };
+  }
+
 
   console.log("Getting existing entries")
   // Get the current entries to determine the largest order
