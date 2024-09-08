@@ -110,7 +110,7 @@ export const Dashboard = ({ onLogout }) => {
                         <div style={{ marginRight: '20px', fontWeight: 'bold' }}>{index + 1}</div>
                         <div style={{ marginRight: '10px' }}>
                             <Image
-                                src={entry.url}
+                                src={entry.thumbnailUrl}
                                 size="small"
                                 style={{ cursor: 'pointer', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
                                 onClick={() => window.open(entry.url, '_blank')}

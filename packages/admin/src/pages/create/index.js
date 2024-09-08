@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Button, Image, Segment, Header, Icon, Dimmer, Loader } from 'semantic-ui-react';
+import { Form, Button, Image, Segment, Header, Icon, Dimmer, Loader, Message } from 'semantic-ui-react';
 import { useNavigate } from 'react-router-dom';
 import { uploadImage } from '../../services/api.js';
 
@@ -9,13 +9,23 @@ export const CreateEntryPage = () => {
   const [name, setName] = useState('');
   const [dateCreated, setDateCreated] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');  // New state for error messages
   const navigate = useNavigate();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
+      // Check file size (9.5 MB = 9.5 * 1024 * 1024 bytes)
+      const maxSizeInBytes = 9.5 * 1024 * 1024;
+      if (file.size > maxSizeInBytes) {
+        setErrorMessage('Image size exceeds 9.5 MB. Please choose a smaller image.');
+        setImage(null);
+        setPreview(null);
+      } else {
+        setImage(file);
+        setPreview(URL.createObjectURL(file));
+        setErrorMessage(''); // Clear error message if image is valid
+      }
     }
   };
 
@@ -49,6 +59,7 @@ export const CreateEntryPage = () => {
   const clearImage = () => {
     setImage(null);
     setPreview(null);
+    setErrorMessage(''); // Clear any error message
   };
 
   const triggerFileSelect = () => {
@@ -119,7 +130,7 @@ export const CreateEntryPage = () => {
           type="submit"
           primary
           color="green"
-          disabled={!image || !name || !dateCreated}
+          disabled={!image || !name || !dateCreated || errorMessage} // Disable if image is too large or fields are incomplete
         >
           Submit
         </Button>
@@ -140,6 +151,12 @@ export const CreateEntryPage = () => {
         >
           Clear Image
         </Button>
+
+        {errorMessage && (
+          <Message negative>
+            <p>{errorMessage}</p>
+          </Message>
+        )}
       </Form>
     </div>
   );
