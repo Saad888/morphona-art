@@ -19,7 +19,7 @@ jobs:
           node-version: '18.x'
 
       - name: Install Dependencies for Lambda (linux-arm64)
-        run: npm install --platform=linux --arch=arm64 sharp
+        run: npm install --os=linux --cpu=arm64 sharp
         working-directory: packages/api
 
       - name: Install dependencies
