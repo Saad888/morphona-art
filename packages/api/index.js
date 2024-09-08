@@ -66,12 +66,12 @@ const handleGet = async () => {
 const handlePut = async (event) => {
   console.log("Starting PUT");
   const formData = JSON.parse(event.body);
-  const { name, dateCreated, image } = formData;
+  const { name, image } = formData;
 
   // Parameter validation
   console.log("Validating parameters");
-  if (!name || !dateCreated) {
-    return { error: 'Name and dateCreated are required' };
+  if (!name) {
+    return { error: 'Name is required' };
   }
   if (!image) {
     return { error: 'Image is required for creating an entry' };
@@ -125,7 +125,6 @@ const handlePut = async (event) => {
     name,
     url: `${CLOUDFRONT_URL}/${baseImageKey}`,  // CloudFront URL for the original image
     thumbnailUrl: `${CLOUDFRONT_URL}/${thumbnailKey}`,  // CloudFront URL for the thumbnail
-    dateCreated,
     order: maxOrder + 1
   };
 
@@ -164,7 +163,9 @@ const handleDelete = async (event) => {
 
   // Delete the image from S3
   const imageKey = entry.Item.url.split('/').pop();
+  const thumbnailKey = entry.Item.thumbnailUrl.split('/').pop();
   await s3.deleteObject({ Bucket: BUCKET_NAME, Key: imageKey }).promise();
+  await s3.deleteObject({ Bucket: BUCKET_NAME, Key: thumbnailKey }).promise();
 
   // Delete the entry from DynamoDB
   await dynamoDb.delete(getParams).promise();
@@ -187,7 +188,7 @@ const handleDelete = async (event) => {
 
 // Handle POST: Update existing entry in DynamoDB
 const handlePost = async (event) => {
-  const { id, name, dateCreated, order } = JSON.parse(event.body);
+  const { id, name, order } = JSON.parse(event.body);
 
   // Parameter validation
   if (!id) {
@@ -208,7 +209,6 @@ const handlePost = async (event) => {
   const updatedEntry = {
     ...currentEntry.Item,
     name: name || currentEntry.Item.name,
-    dateCreated: dateCreated || currentEntry.Item.dateCreated,
     order: order || currentEntry.Item.order
   };
 

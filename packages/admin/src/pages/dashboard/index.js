@@ -9,7 +9,7 @@ export const Dashboard = ({ onLogout }) => {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(false);
     const [editMode, setEditMode] = useState(null); // Track which entry is in edit mode
-    const [editedData, setEditedData] = useState({ name: '', dateCreated: '' });
+    const [editedData, setEditedData] = useState({ name: '' });
     console.log(entries)
 
     const handleLogout = () => {
@@ -36,12 +36,12 @@ export const Dashboard = ({ onLogout }) => {
 
     const handleEditClick = (entry) => {
         setEditMode(entry.id);
-        setEditedData({ name: entry.name, dateCreated: entry.dateCreated });
+        setEditedData({ name: entry.name });
     };
 
     const handleSaveClick = async (id) => {
         setLoading(true);
-        await updateImage(id, { name: editedData.name, dateCreated: editedData.dateCreated });
+        await updateImage(id, { name: editedData.name });
         const result = await getImages();
         setEntries(result.sort((a, b) => b.order - a.order));
         setEditMode(null); // Exit edit mode
@@ -60,7 +60,7 @@ export const Dashboard = ({ onLogout }) => {
 
     const handleCancelEdit = () => {
         setEditMode(null);
-        setEditedData({ name: '', dateCreated: '' });
+        setEditedData({ name: ''});
     };
 
     return (
@@ -125,16 +125,10 @@ export const Dashboard = ({ onLogout }) => {
                                         onChange={(e) => setEditedData({ ...editedData, name: e.target.value })}
                                         style={{ marginBottom: '10px' }}
                                     />
-                                    <Input
-                                        type="date"
-                                        value={editedData.dateCreated}
-                                        onChange={(e) => setEditedData({ ...editedData, dateCreated: e.target.value })}
-                                    />
                                 </Form>
                             ) : (
                                 <>
                                     <p style={{ fontSize: '16px', fontWeight: 'bold', margin: '0' }}>{entry.name}</p>
-                                    <p style={{ fontSize: '14px', color: '#666' }}>{new Date(entry.dateCreated).toISOString().split('T')[0]}</p>
                                 </>
                             )}
                         </div>
@@ -159,7 +153,7 @@ export const Dashboard = ({ onLogout }) => {
                                     <Button
                                         color="green"
                                         onClick={() => handleSaveClick(entry.id)}
-                                        disabled={!editedData.name || !editedData.dateCreated || loading}
+                                        disabled={!editedData.name || loading}
                                         size="tiny"
                                     >
                                         Save

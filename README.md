@@ -12,9 +12,10 @@ Updating the password for an admin account: aws cognito-idp admin-set-user-passw
 All aws resources are on my @live account
 
 To Do:
-- Update the upload link to create a thumbnail version and store the image 
-- Add in CLoudFront for CDNs
-- Update the actual sites or something to use the CDN
+- Add publish feature
+- Test
+- Confirm if 9.5mb limitation is fine
+- Push out
 
 
 - Front End: create everything lol

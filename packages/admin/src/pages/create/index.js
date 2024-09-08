@@ -7,7 +7,6 @@ export const CreateEntryPage = () => {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [name, setName] = useState('');
-  const [dateCreated, setDateCreated] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');  // New state for error messages
   const navigate = useNavigate();
@@ -31,7 +30,7 @@ export const CreateEntryPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (image && name && dateCreated) {
+    if (image && name) {
       setLoading(true);
 
       // Convert image to base64 string
@@ -39,7 +38,6 @@ export const CreateEntryPage = () => {
 
       const body = {
         name,
-        dateCreated,
         image: imageBase64 // Add base64 image data to the JSON object
       };
 
@@ -118,19 +116,11 @@ export const CreateEntryPage = () => {
             onChange={(e) => setName(e.target.value)}
           />
         </Form.Field>
-        <Form.Field>
-          <label>Date Created</label>
-          <input
-            type="date"
-            value={dateCreated}
-            onChange={(e) => setDateCreated(e.target.value)}
-          />
-        </Form.Field>
         <Button
           type="submit"
           primary
           color="green"
-          disabled={!image || !name || !dateCreated || errorMessage} // Disable if image is too large or fields are incomplete
+          disabled={!image || !name || errorMessage} // Disable if image is too large or fields are incomplete
         >
           Submit
         </Button>
