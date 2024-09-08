@@ -65,7 +65,7 @@ export const Dashboard = ({ onLogout }) => {
     const handlePublishClick = async () => {
         setLoading(true);
         try {
-            const result = await publishData();
+            await publishData();
             alert('Data published successfully!');
         } catch (error) {
             alert('Failed to publish data');
