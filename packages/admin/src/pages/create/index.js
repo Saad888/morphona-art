@@ -15,9 +15,9 @@ export const CreateEntryPage = () => {
     const file = e.target.files[0];
     if (file) {
       // Check file size (9.5 MB = 9.5 * 1024 * 1024 bytes)
-      const maxSizeInBytes = 9.5 * 1024 * 1024;
+      const maxSizeInBytes = 8.5 * 1024 * 1024;
       if (file.size > maxSizeInBytes) {
-        setErrorMessage('Image size exceeds 9.5 MB. Please choose a smaller image.');
+        setErrorMessage('Image size exceeds 8.5 MB. Please choose a smaller image.');
         setImage(null);
         setPreview(null);
       } else {
