@@ -11,15 +11,24 @@ export const uploadImage = async (formData) => {
       body: JSON.stringify(formData),
       headers: {
         Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json'
       },
     });
 
     if (!response.ok) {
-      throw new Error('Failed to upload image');
+      throw new Error('Failed to fetch signed URLs');
     }
 
+    const data = await response.json();
+
+    // Return the signed URLs for the image and thumbnail
+    return {
+      imageUrl: data.signedUrls.imageUrl,
+      thumbnailUrl: data.signedUrls.thumbnailUrl,
+    };
+
   } catch (error) {
-    console.error('Error uploading image:', error);
+    console.error('Error fetching signed URLs:', error);
     throw error;
   }
 };

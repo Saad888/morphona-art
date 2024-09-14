@@ -1,30 +1,23 @@
 import React, { useState } from 'react';
 import { Form, Button, Image, Segment, Header, Icon, Dimmer, Loader, Message } from 'semantic-ui-react';
 import { useNavigate } from 'react-router-dom';
-import { uploadImage } from '../../services/api.js';
+import { uploadImage, deleteImage } from '../../services/api.js';
+import imageCompression from 'browser-image-compression';
 
 export const CreateEntryPage = () => {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');  // New state for error messages
+  const [errorMessage, setErrorMessage] = useState(''); 
   const navigate = useNavigate();
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file size (9.5 MB = 9.5 * 1024 * 1024 bytes)
-      const maxSizeInBytes = 8.5 * 1024 * 1024;
-      if (file.size > maxSizeInBytes) {
-        setErrorMessage('Image size exceeds 8.5 MB. Please choose a smaller image.');
-        setImage(null);
-        setPreview(null);
-      } else {
-        setImage(file);
-        setPreview(URL.createObjectURL(file));
-        setErrorMessage(''); // Clear error message if image is valid
-      }
+      setImage(file);
+      setPreview(URL.createObjectURL(file));
+      setErrorMessage('');
     }
   };
 
@@ -33,21 +26,37 @@ export const CreateEntryPage = () => {
     if (image && name) {
       setLoading(true);
 
-      // Convert image to base64 string
-      const imageBase64 = await toBase64(image);
-
-      const body = {
-        name,
-        image: imageBase64 // Add base64 image data to the JSON object
-      };
-
       try {
-        await uploadImage(body);  // Send the JSON object to your API
+        // Get signed URLs from the API
+        const { imageUrl, thumbnailUrl } = await uploadImage({ name });
+
+        // Compress the image for thumbnail
+        const options = {
+          maxSizeMB: 1, // Reduce to under 1 MB
+          maxWidthOrHeight: 1024, // Maximum size for the thumbnail
+          useWebWorker: true,
+        };
+        const compressedThumbnail = await imageCompression(image, options);
+
+        // Upload the compressed thumbnail
+        await uploadToS3(thumbnailUrl, compressedThumbnail);
+
+        // Upload the original image
+        await uploadToS3(imageUrl, image);
+
         alert('Upload successful!');
         navigate('/');
       } catch (error) {
         console.error('Error during upload:', error);
-        alert(`Upload failed: ${error.message}`);
+        setErrorMessage('Upload failed. Attempting to delete metadata.');
+
+        try {
+          await deleteImage({ name });
+          alert('Metadata deleted.');
+        } catch (deleteError) {
+          console.error('Error during metadata deletion:', deleteError);
+          setErrorMessage('Failed to delete metadata.');
+        }
       } finally {
         setLoading(false);
       }
@@ -57,20 +66,24 @@ export const CreateEntryPage = () => {
   const clearImage = () => {
     setImage(null);
     setPreview(null);
-    setErrorMessage(''); // Clear any error message
+    setErrorMessage('');
   };
 
   const triggerFileSelect = () => {
     document.getElementById('fileInput').click();
   };
 
-  const toBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result.split(',')[1]); // Get base64 data without metadata prefix
-      reader.onerror = (error) => reject(error);
+  const uploadToS3 = async (url, file) => {
+    const response = await fetch(url, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type, // Make sure the file is uploaded with the correct MIME type
+      },
     });
+    if (!response.ok) {
+      throw new Error('Failed to upload to S3');
+    }
   };
 
   return (
@@ -120,7 +133,7 @@ export const CreateEntryPage = () => {
           type="submit"
           primary
           color="green"
-          disabled={!image || !name || errorMessage} // Disable if image is too large or fields are incomplete
+          disabled={!image || !name || errorMessage}
         >
           Submit
         </Button>
