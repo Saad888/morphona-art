@@ -25,11 +25,14 @@ export const CreateEntryPage = () => {
     e.preventDefault();
     if (image && name) {
       setLoading(true);
-
+  
       try {
-        // Get signed URLs from the API
-        const { imageUrl, thumbnailUrl } = await uploadImage({ name });
-
+        // Get the image MIME type (e.g., 'image/jpeg' or 'image/png')
+        const mimeType = image.type;
+  
+        // Get signed URLs from the API with the image MIME type
+        const { imageUrl, thumbnailUrl } = await uploadImage({ name, mimeType });
+  
         // Compress the image for thumbnail
         const options = {
           maxSizeMB: 1, // Reduce to under 1 MB
@@ -37,19 +40,19 @@ export const CreateEntryPage = () => {
           useWebWorker: true,
         };
         const compressedThumbnail = await imageCompression(image, options);
-
+  
         // Upload the compressed thumbnail
         await uploadToS3(thumbnailUrl, compressedThumbnail);
-
+  
         // Upload the original image
         await uploadToS3(imageUrl, image);
-
+  
         alert('Upload successful!');
         navigate('/');
       } catch (error) {
         console.error('Error during upload:', error);
         setErrorMessage('Upload failed. Attempting to delete metadata.');
-
+  
         try {
           await deleteImage({ name });
           alert('Metadata deleted.');

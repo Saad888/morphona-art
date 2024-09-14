@@ -63,30 +63,35 @@ const handleGet = async () => {
 
 const handlePut = async (event) => {
   const formData = JSON.parse(event.body);
-  const { name } = formData;
+  const { name, mimeType } = formData;
 
   // Parameter validation
-  if (!name) {
-    return { error: 'Name is required' };
+  if (!name || !mimeType) {
+    return { error: 'Name and MIME type are required' };
+  }
+
+  // Validate the MIME type (either image/jpeg or image/png)
+  if (!['image/jpeg', 'image/png'].includes(mimeType)) {
+    return { error: 'Invalid MIME type. Only image/jpeg and image/png are allowed.' };
   }
 
   const id = uuid();
   const baseImageKey = `${name}-${id}`;
   const thumbnailKey = `${name}-${id}-thumbnail`;
 
-  // Generate pre-signed URLs for image and thumbnail uploads
+  // Generate pre-signed URLs for image and thumbnail uploads with the provided MIME type
   const imageUrl = s3.getSignedUrl('putObject', {
     Bucket: BUCKET_NAME,
     Key: baseImageKey,
     Expires: 60 * 5,  // URL valid for 5 minutes
-    ContentType: 'image/jpeg',
+    ContentType: mimeType,  // Set the MIME type dynamically based on the request
   });
 
   const thumbnailUrl = s3.getSignedUrl('putObject', {
     Bucket: BUCKET_NAME,
     Key: thumbnailKey,
     Expires: 60 * 5,  // URL valid for 5 minutes
-    ContentType: 'image/jpeg',
+    ContentType: mimeType,  // Set the MIME type dynamically based on the request
   });
 
   // Get the current entries to determine the largest order
