@@ -19,3 +19,5 @@ To Do:
 
 
 - Front End: create everything lol
+
+https://df8iwee0cmtv2.cloudfront.net/data.json
