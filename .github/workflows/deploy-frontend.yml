@@ -20,7 +20,7 @@ jobs:
           node-version: '14'  # Match your Node.js version
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --force
         working-directory: packages/frontend
 
       - name: Build project
