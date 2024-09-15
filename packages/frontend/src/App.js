@@ -7,6 +7,7 @@ import { Particles } from './components/Particles.js';
 import { Logo } from './components/logo/index.js';
 import { Divider } from './components/divider/index.js';
 import MasonryGrid from './components/grid/index.js';
+import LinkTreeComponent from './components/linktree/index.js';
 
 const App = () => {
 
@@ -16,6 +17,8 @@ const App = () => {
       <Logo />
       <Divider />
       <MasonryGrid />
+      <Divider />
+      <LinkTreeComponent />
     </div>
   )
 
