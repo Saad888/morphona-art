@@ -2,10 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useSpring, animated } from '@react-spring/web';
-import styles from './MasonryGrid.module.scss'; 
+import styles from './MasonryGrid.module.scss';
 
 const MasonryGrid = () => {
   const [data, setData] = useState([]);
+  const [modalImage, setModalImage] = useState(null); // Track the current image for the modal
+  const [isModalOpen, setIsModalOpen] = useState(false); // Track if the modal is open
 
   // Fetch the data
   useEffect(() => {
@@ -20,6 +22,18 @@ const MasonryGrid = () => {
     fetchData();
   }, []);
 
+  // Function to handle image click
+  const openModal = (image) => {
+    setModalImage(image);
+    setIsModalOpen(true);
+  };
+
+  // Function to close the modal
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalImage(null);
+  };
+
   // Animation for each grid item
   const AnimatedGridItem = ({ item, number }) => {
     const springProps = useSpring({
@@ -29,20 +43,17 @@ const MasonryGrid = () => {
       delay: 100 * number,
     });
 
-    // Function to handle image click
-    const handleClick = () => {
-      console.log(`Image clicked: ${item.n}`);
-    };
+    const fullImageUrl = `https://df8iwee0cmtv2.cloudfront.net/${item.i}`;
 
     return (
       <animated.div
         style={springProps}
         className={styles.gridItem}
-        onClick={handleClick} // Added click event
+        onClick={() => openModal(fullImageUrl)} // Open modal with the full image
       >
         <div className={styles.imageContainer}>
           <img
-            src={`https://df8iwee0cmtv2.cloudfront.net/${item.i}-thumbnail`}
+            src={`${fullImageUrl}-thumbnail`}
             alt={item.n}
             className={styles.image}
           />
@@ -56,6 +67,18 @@ const MasonryGrid = () => {
       {data.map((item, index) => (
         <AnimatedGridItem key={item.i} item={item} number={index} />
       ))}
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className={styles.modal}>
+          <div className={styles.modalContent}>
+            <button className={styles.closeButton} onClick={closeModal}>
+              &times;
+            </button>
+            <img src={modalImage} alt="Full size" className={styles.fullImage} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
