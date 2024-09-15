@@ -42,7 +42,8 @@ const MasonryGrid = () => {
     const fetchData = async () => {
       try {
         const response = await axios.get('https://df8iwee0cmtv2.cloudfront.net/data.json');
-        setData(response.data);
+        const sortedData = response.data.sort((a, b) => b.o - a.o); // Sort the data by order
+        setData(sortedData);
       } catch (error) {
         console.error('Error fetching the data', error);
       }
