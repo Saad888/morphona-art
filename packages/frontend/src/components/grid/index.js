@@ -1,8 +1,9 @@
 // @ts-nocheck
-import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useSpring, animated } from '@react-spring/web';
 import styles from './MasonryGrid.module.scss';
+
+const CLOUDFRONT_URL = 'https://df8iwee0cmtv2.cloudfront.net';
 
 // Memoized grid item to prevent unnecessary re-renders
 const AnimatedGridItem = React.memo(({ item, number, openModal }) => {
@@ -13,7 +14,7 @@ const AnimatedGridItem = React.memo(({ item, number, openModal }) => {
     delay: 100 * number,
   });
 
-  const fullImageUrl = `https://df8iwee0cmtv2.cloudfront.net/${item.i}`;
+  const fullImageUrl = `${CLOUDFRONT_URL}/${item.i}`;
 
   return (
     <animated.div
@@ -32,24 +33,14 @@ const AnimatedGridItem = React.memo(({ item, number, openModal }) => {
   );
 });
 
-const MasonryGrid = () => {
-  const [data, setData] = useState([]);
+const MasonryGrid = ({ entries, activeSlug }) => {
   const [modalImage, setModalImage] = useState(null); // Track the current image for the modal
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if the modal is open
 
-  // Fetch the data only once
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get('https://df8iwee0cmtv2.cloudfront.net/data.json');
-        const sortedData = response.data.sort((a, b) => b.o - a.o); // Sort the data by order
-        setData(sortedData);
-      } catch (error) {
-        console.error('Error fetching the data', error);
-      }
-    };
-    fetchData();
-  }, []);
+  const data = useMemo(
+    () => entries.filter((item) => item.c === activeSlug).sort((a, b) => b.o - a.o),
+    [entries, activeSlug]
+  );
 
   // Function to handle image click - memoized to avoid unnecessary re-renders
   const openModal = useCallback((image) => {

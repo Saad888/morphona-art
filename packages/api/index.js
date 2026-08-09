@@ -92,6 +92,16 @@ const resolveCategoryBySlug = async (slug) => {
   return (data.Items ?? []).find((c) => c.slug === slug);
 };
 
+// Entries are ordered independently within each category (order 1..N per category, not globally)
+const scanEntriesByCategory = async (categoryId) => {
+  const data = await dynamoDb.scan({
+    TableName: TABLE_NAME,
+    FilterExpression: 'categoryId = :cid',
+    ExpressionAttributeValues: { ':cid': categoryId }
+  }).promise();
+  return data.Items ?? [];
+};
+
 // Handle GET: return entries from DynamoDB, optionally filtered by category slug
 const handleGet = async (event) => {
   const categorySlug = event.queryStringParameters?.category;
@@ -157,9 +167,9 @@ const handlePut = async (event) => {
     ContentType: mimeType,  // Set the MIME type dynamically based on the request
   });
 
-  // Get the current entries to determine the largest order
-  const existingEntries = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
-  const maxOrder = existingEntries.Items?.reduce((max, entry) => (entry.order > max ? entry.order : max), 0) ?? 0;
+  // Get the current entries in this category to determine the largest order
+  const existingEntries = await scanEntriesByCategory(category.id);
+  const maxOrder = existingEntries.reduce((max, entry) => (entry.order > max ? entry.order : max), 0);
 
   // Create new entry object
   const newEntry = {
@@ -234,14 +244,14 @@ const handleDelete = async (event) => {
   // Delete the entry from DynamoDB
   await dynamoDb.delete(getParams).promise();
 
-  // Update the orders of the remaining entries
-  const existingEntries = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
-  const updatedEntries = existingEntries.Items?.filter(item => item.id !== id)
+  // Update the orders of the remaining entries in the same category
+  const existingEntries = await scanEntriesByCategory(entry.Item.categoryId);
+  const updatedEntries = existingEntries
     .sort((a, b) => a.order - b.order)
     .map((item, index) => ({
       ...item,
       order: index + 1
-    })) ?? [];
+    }));
 
   for (let entry of updatedEntries) {
     await dynamoDb.put({ TableName: TABLE_NAME, Item: entry }).promise();
@@ -278,8 +288,8 @@ const handlePost = async (event) => {
   };
 
   if (order && order !== currentEntry.Item.order) {
-    const existingEntries = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
-    const entryWithDesiredOrder = existingEntries.Items?.find(item => item.order === order);
+    const existingEntries = await scanEntriesByCategory(currentEntry.Item.categoryId);
+    const entryWithDesiredOrder = existingEntries.find(item => item.order === order);
 
     if (entryWithDesiredOrder) {
       const swappedEntry = { ...entryWithDesiredOrder, order: currentEntry.Item.order };
@@ -393,7 +403,7 @@ const handleDeleteCategory = async (event) => {
 
   if (referencingEntries.Count > 0) {
     const noun = referencingEntries.Count === 1 ? 'entry' : 'entries';
-    throw new Error(`Cannot delete category "${category.Item.name}": ${referencingEntries.Count} ${noun} still reference it`);
+    throw new Error(`"${category.Item.name}" still has ${referencingEntries.Count} ${noun} in it. Move or delete ${referencingEntries.Count === 1 ? 'it' : 'them'} first, then try deleting the category again.`);
   }
 
   await dynamoDb.delete({ TableName: CATEGORIES_TABLE_NAME, Key: { id } }).promise();

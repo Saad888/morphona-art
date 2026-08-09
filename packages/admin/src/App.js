@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { LoginPage } from './pages/login';
 import { Dashboard } from "./pages/dashboard";
+import { CategoryListPage } from './pages/categories/index.js';
 import { isUserAuthenticated } from './services/cognito';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { CreateEntryPage } from './pages/create/index.js';
 
 function App() {
@@ -27,8 +28,10 @@ function App() {
     <div>
       <Router>
         <Routes>
-          <Route path="/create" element={<CreateEntryPage />} />
-          <Route path="*" element={<Dashboard onLogout={() => setIsAuthenticated(false)} />} />
+          <Route path="/" element={<CategoryListPage onLogout={() => setIsAuthenticated(false)} />} />
+          <Route path="/category/:slug" element={<Dashboard />} />
+          <Route path="/category/:slug/create" element={<CreateEntryPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </div>

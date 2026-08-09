@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Form, Button, Image, Segment, Header, Icon, Dimmer, Loader, Message } from 'semantic-ui-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { uploadImage, deleteImage } from '../../services/api.js';
 import imageCompression from 'browser-image-compression';
 
 export const CreateEntryPage = () => {
+  const { slug } = useParams();
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(''); 
+  const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
 
   const handleImageChange = (e) => {
@@ -31,7 +32,7 @@ export const CreateEntryPage = () => {
         const mimeType = image.type;
   
         // Get signed URLs from the API with the image MIME type
-        const { imageUrl, thumbnailUrl } = await uploadImage({ name, mimeType });
+        const { imageUrl, thumbnailUrl } = await uploadImage({ name, mimeType, categorySlug: slug });
   
         // Compress the image for thumbnail
         const options = {
@@ -48,7 +49,7 @@ export const CreateEntryPage = () => {
         await uploadToS3(imageUrl, image);
   
         alert('Upload successful!');
-        navigate('/');
+        navigate(`/category/${slug}`);
       } catch (error) {
         console.error('Error during upload:', error);
         setErrorMessage('Upload failed. Attempting to delete metadata.');
@@ -142,7 +143,7 @@ export const CreateEntryPage = () => {
         </Button>
         <Button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate(`/category/${slug}`)}
           color="red"
           style={{ marginLeft: '10px' }}
         >

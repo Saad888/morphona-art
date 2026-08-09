@@ -30,7 +30,7 @@ export const Particles = () => {
   }
 
   return (
-      <div style={{position: "Absolute", height: "100vh", width: "100vw"}}>
+      <div style={{position: "absolute", height: "100vh", width: "100vw", pointerEvents: "none"}}>
         <ParticleBackground settings={settings} />
 
       </div>

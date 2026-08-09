@@ -1,34 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Image, Loader, Input, Form, Segment } from 'semantic-ui-react';
 import 'semantic-ui-css/semantic.min.css';
-import { logout } from '../../services/cognito';
+import { useParams, useLocation } from 'react-router-dom';
 import { NavButton } from '../../common/navButton.js';
-import { getImages, updateImage, deleteImage, publishData } from '../../services/api.js';
+import { getImages, updateImage, deleteImage, publishData, getCategories } from '../../services/api.js';
 
-export const Dashboard = ({ onLogout }) => {
+export const Dashboard = () => {
+    const { slug } = useParams();
+    const location = useLocation();
     const [entries, setEntries] = useState([]);
+    const [categoryName, setCategoryName] = useState(location.state?.name ?? slug);
     const [loading, setLoading] = useState(false);
     const [editMode, setEditMode] = useState(null); // Track which entry is in edit mode
     const [editedData, setEditedData] = useState({ name: '' });
 
-    const handleLogout = () => {
-        logout(onLogout);
-    };
-
     useEffect(() => {
         const getImageData = async () => {
             setLoading(true);
-            const result = await getImages();
+            const result = await getImages(slug);
             setEntries(result.sort((a, b) => b.order - a.order)); // Sort entries by order DESC
             setLoading(false);
         };
         getImageData();
-    }, []);
+
+        // Deep-links/refreshes arrive without location.state - resolve the display name
+        if (!location.state?.name) {
+            getCategories().then((categories) => {
+                const match = categories.find((c) => c.slug === slug);
+                if (match) setCategoryName(match.name);
+            });
+        }
+    }, [slug]);
 
     const handleOrderChange = async (id, newOrder) => {
         setLoading(true);
         await updateImage(id, { order: newOrder });
-        const result = await getImages();
+        const result = await getImages(slug);
         setEntries(result.sort((a, b) => b.order - a.order));
         setLoading(false);
     };
@@ -41,7 +48,7 @@ export const Dashboard = ({ onLogout }) => {
     const handleSaveClick = async (id) => {
         setLoading(true);
         await updateImage(id, { name: editedData.name });
-        const result = await getImages();
+        const result = await getImages(slug);
         setEntries(result.sort((a, b) => b.order - a.order));
         setEditMode(null); // Exit edit mode
         setLoading(false);
@@ -51,7 +58,7 @@ export const Dashboard = ({ onLogout }) => {
         if (window.confirm('Are you sure you want to delete this entry?')) {
             setLoading(true);
             await deleteImage(id);
-            const result = await getImages();
+            const result = await getImages(slug);
             setEntries(result.sort((a, b) => b.order - a.order));
             setLoading(false);
         }
@@ -93,13 +100,13 @@ export const Dashboard = ({ onLogout }) => {
                     <Loader active size="large">Loading...</Loader>
                 </div>
             )}
-            <h2 style={{ textAlign: 'center' }}>Dashboard</h2>
-            <p style={{ textAlign: 'center' }}>Welcome to your dashboard!</p>
+            <h2 style={{ textAlign: 'center' }}>{categoryName}</h2>
+            <p style={{ textAlign: 'center' }}>Manage entries in this category.</p>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                <Button color="red" onClick={handleLogout}>
-                    Logout
-                </Button>
-                <NavButton color="blue" href="/create">
+                <NavButton color="grey" href="/">
+                    Back to Categories
+                </NavButton>
+                <NavButton color="blue" href={`/category/${slug}/create`}>
                     Create
                 </NavButton>
                 <Button color="green" onClick={handlePublishClick}>
