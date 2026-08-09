@@ -9,6 +9,7 @@ import { Particles } from './components/Particles.js';
 import { Logo } from './components/logo/index.js';
 import { Divider } from './components/divider/index.js';
 import { GalleryPage } from './components/gallery/index.js';
+import { AboutPage } from './components/about/index.js';
 import LinkTreeComponent from './components/linktree/index.js';
 
 const CLOUDFRONT_URL = 'https://df8iwee0cmtv2.cloudfront.net';
@@ -24,6 +25,7 @@ const RootRedirect = ({ categories, loaded }) => {
 const App = () => {
   const [categories, setCategories] = useState([]);
   const [entries, setEntries] = useState([]);
+  const [aboutContent, setAboutContent] = useState('');
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ const App = () => {
         const response = await axios.get(`${CLOUDFRONT_URL}/data.json`);
         setCategories(response.data.categories ?? []);
         setEntries(response.data.entries ?? []);
+        setAboutContent(response.data.about ?? '');
       } catch (error) {
         console.error('Error fetching the data', error);
       } finally {
@@ -49,6 +52,7 @@ const App = () => {
         <Divider />
         <Routes>
           <Route path="/" element={<RootRedirect categories={categories} loaded={loaded} />} />
+          <Route path="/about" element={<AboutPage content={aboutContent} categories={categories} />} />
           <Route
             path="/:categorySlug"
             element={<GalleryPage categories={categories} entries={entries} loaded={loaded} />}

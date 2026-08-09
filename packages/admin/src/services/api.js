@@ -153,6 +153,51 @@ export const requestThumbnailUploadUrl = async (id) => {
   }
 };
 
+export const getAbout = async () => {
+  try {
+    const idToken = await getIdToken();
+
+    const response = await fetch(`${URL}/about`, {
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get about content');
+    }
+
+    return (await response.json()).content ?? '';
+  } catch (error) {
+    console.error('Error getting about content:', error);
+    throw error;
+  }
+};
+
+export const updateAbout = async (content) => {
+  try {
+    const idToken = await getIdToken();
+
+    const response = await fetch(`${URL}/about`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json'
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update about content');
+    }
+
+    return (await response.json()).content;
+  } catch (error) {
+    console.error('Error updating about content:', error);
+    throw error;
+  }
+};
+
 export const getCategories = async () => {
   try {
     const idToken = await getIdToken();

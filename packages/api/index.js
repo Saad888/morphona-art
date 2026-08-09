@@ -8,6 +8,7 @@ const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const BUCKET_NAME = process.env.BUCKET_NAME ?? '';
 const TABLE_NAME = process.env.TABLE_NAME ?? '';
 const CATEGORIES_TABLE_NAME = process.env.CATEGORIES_TABLE_NAME ?? '';
+const ABOUT_TABLE_NAME = process.env.ABOUT_TABLE_NAME ?? '';
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? '';
 const CLOUDFRONT_DISTRIBUTION_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID ?? '';
 
@@ -22,7 +23,7 @@ const addCorsHeaders = (body, statusCode = 200) => ({
 });
 
 exports.handler = async (event) => {
-  if (BUCKET_NAME === '' || TABLE_NAME === '' || CATEGORIES_TABLE_NAME === '' || CLOUDFRONT_URL === '') {
+  if (BUCKET_NAME === '' || TABLE_NAME === '' || CATEGORIES_TABLE_NAME === '' || ABOUT_TABLE_NAME === '' || CLOUDFRONT_URL === '') {
     return addCorsHeaders({ error: 'environment variables are required' }, 500);
   }
 
@@ -51,6 +52,10 @@ exports.handler = async (event) => {
       result = await handlePostCategory(event);
     } else if (method === 'DELETE' && path.startsWith('/categories')) {
       result = await handleDeleteCategory(event);
+    } else if (method === 'GET' && path === '/about') {
+      result = await handleGetAbout();
+    } else if (method === 'POST' && path === '/about') {
+      result = await handleUpdateAbout(event);
     } else if (method === 'POST' && path === '/publish') {
       result = await handlePublish();
     } else {
@@ -351,6 +356,27 @@ const handleRequestThumbnailUpload = async (event) => {
   return { thumbnailUploadUrl };
 };
 
+const ABOUT_ITEM_ID = 'about';
+
+// Handle GET /about: return the current About Me markdown content
+const handleGetAbout = async () => {
+  const data = await dynamoDb.get({ TableName: ABOUT_TABLE_NAME, Key: { id: ABOUT_ITEM_ID } }).promise();
+  return { content: data.Item?.content ?? '' };
+};
+
+// Handle POST /about: upsert the About Me markdown content
+const handleUpdateAbout = async (event) => {
+  const { content } = JSON.parse(event.body);
+
+  if (typeof content !== 'string') {
+    return { error: 'Content is required' };
+  }
+
+  await dynamoDb.put({ TableName: ABOUT_TABLE_NAME, Item: { id: ABOUT_ITEM_ID, content } }).promise();
+
+  return { message: 'About content updated successfully', content };
+};
+
 // Handle GET: return all categories from DynamoDB
 const handleGetCategories = async () => {
   const data = await dynamoDb.scan({ TableName: CATEGORIES_TABLE_NAME }).promise();
@@ -458,13 +484,15 @@ const handleDeleteCategory = async (event) => {
 // Handle publish: Retrieve categories and entries, minify, and save to S3 as data.json
 const handlePublish = async () => {
   try {
-    const [categoriesData, entriesData] = await Promise.all([
+    const [categoriesData, entriesData, aboutData] = await Promise.all([
       dynamoDb.scan({ TableName: CATEGORIES_TABLE_NAME }).promise(),
       dynamoDb.scan({ TableName: TABLE_NAME }).promise(),
+      dynamoDb.get({ TableName: ABOUT_TABLE_NAME, Key: { id: ABOUT_ITEM_ID } }).promise(),
     ]);
 
     const categories = categoriesData.Items ?? [];
     const entries = entriesData.Items ?? [];
+    const about = aboutData.Item?.content ?? '';
     const idToSlug = Object.fromEntries(categories.map((c) => [c.id, c.slug]));
 
     const minifiedCategories = categories.map(category => ({
@@ -480,7 +508,7 @@ const handlePublish = async () => {
       c: idToSlug[entry.categoryId],
     }));
 
-    const jsonData = JSON.stringify({ categories: minifiedCategories, entries: minifiedEntries });
+    const jsonData = JSON.stringify({ categories: minifiedCategories, entries: minifiedEntries, about });
 
     await s3.putObject({
       Bucket: BUCKET_NAME,

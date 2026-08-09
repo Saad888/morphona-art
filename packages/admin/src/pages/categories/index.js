@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Loader, Input, Form, Segment, Message } from 'semantic-ui-react';
 import { useNavigate } from 'react-router-dom';
-import { logout } from '../../services/cognito';
-import { getCategories, createCategory, updateCategory, deleteCategory, publishData } from '../../services/api.js';
+import { getCategories, createCategory, updateCategory, deleteCategory } from '../../services/api.js';
 
-export const CategoryListPage = ({ onLogout }) => {
+export const CategoryListPage = () => {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [editMode, setEditMode] = useState(null); // Track which category is in edit mode
@@ -12,10 +11,6 @@ export const CategoryListPage = ({ onLogout }) => {
     const [newCategoryName, setNewCategoryName] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const navigate = useNavigate();
-
-    const handleLogout = () => {
-        logout(onLogout);
-    };
 
     const loadCategories = async () => {
         setLoading(true);
@@ -90,17 +85,6 @@ export const CategoryListPage = ({ onLogout }) => {
         navigate(`/category/${category.slug}`, { state: { name: category.name } });
     };
 
-    const handlePublishClick = async () => {
-        setLoading(true);
-        try {
-            await publishData();
-            alert('Data published successfully!');
-        } catch (error) {
-            alert('Failed to publish data');
-        }
-        setLoading(false);
-    };
-
     return (
         <div style={{ maxWidth: 800, margin: '0 auto', paddingTop: '50px', position: 'relative' }}>
             {loading && (
@@ -122,15 +106,7 @@ export const CategoryListPage = ({ onLogout }) => {
                 </div>
             )}
             <h2 style={{ textAlign: 'center' }}>Categories</h2>
-            <p style={{ textAlign: 'center' }}>Select a category to manage its entries.</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                <Button color="red" onClick={handleLogout}>
-                    Logout
-                </Button>
-                <Button color="green" onClick={handlePublishClick}>
-                    Publish
-                </Button>
-            </div>
+            <p style={{ textAlign: 'center', marginBottom: '20px' }}>Select a category to manage its entries.</p>
 
             {errorMessage && (
                 <Message negative>

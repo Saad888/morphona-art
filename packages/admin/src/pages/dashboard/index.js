@@ -3,7 +3,7 @@ import { Button, Image, Loader, Input, Form, Segment } from 'semantic-ui-react';
 import 'semantic-ui-css/semantic.min.css';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { NavButton } from '../../common/navButton.js';
-import { getImages, updateImage, deleteImage, publishData, getCategories } from '../../services/api.js';
+import { getImages, updateImage, deleteImage, getCategories } from '../../services/api.js';
 
 export const Dashboard = () => {
     const { slug } = useParams();
@@ -70,17 +70,6 @@ export const Dashboard = () => {
         setEditedData({ name: '' });
     };
 
-    const handlePublishClick = async () => {
-        setLoading(true);
-        try {
-            await publishData();
-            alert('Data published successfully!');
-        } catch (error) {
-            alert('Failed to publish data');
-        }
-        setLoading(false);
-    };
-
     return (
         <div style={{ maxWidth: 800, margin: '0 auto', paddingTop: '50px', position: 'relative' }}>
             {loading && (
@@ -110,9 +99,6 @@ export const Dashboard = () => {
                 <NavButton color="blue" href={`/category/${slug}/create`}>
                     Create
                 </NavButton>
-                <Button color="green" onClick={handlePublishClick}>
-                    Publish
-                </Button>
             </div>
 
             <div>

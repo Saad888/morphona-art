@@ -1,0 +1,27 @@
+.container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 40px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    color: #fff;
+    line-height: 1.6;
+
+    h1, h2, h3, h4 {
+        color: #fff;
+    }
+
+    p {
+        margin: 0 0 1em;
+    }
+
+    a {
+        color: rgb(203, 169, 253);
+    }
+
+    img {
+        max-width: 100%;
+        border-radius: 8px;
+    }
+}
