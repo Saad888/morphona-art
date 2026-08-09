@@ -2,11 +2,14 @@ const { v4: uuid } = require('uuid');
 const AWS = require('aws-sdk');
 
 const s3 = new AWS.S3();
+const cloudfront = new AWS.CloudFront();
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 const BUCKET_NAME = process.env.BUCKET_NAME ?? '';
 const TABLE_NAME = process.env.TABLE_NAME ?? '';
+const CATEGORIES_TABLE_NAME = process.env.CATEGORIES_TABLE_NAME ?? '';
 const CLOUDFRONT_URL = process.env.CLOUDFRONT_URL ?? '';
+const CLOUDFRONT_DISTRIBUTION_ID = process.env.CLOUDFRONT_DISTRIBUTION_ID ?? '';
 
 const addCorsHeaders = (body, statusCode = 200) => ({
   statusCode,
@@ -19,7 +22,7 @@ const addCorsHeaders = (body, statusCode = 200) => ({
 });
 
 exports.handler = async (event) => {
-  if (BUCKET_NAME === '' || TABLE_NAME === '' || CLOUDFRONT_URL === '') {
+  if (BUCKET_NAME === '' || TABLE_NAME === '' || CATEGORIES_TABLE_NAME === '' || CLOUDFRONT_URL === '') {
     return addCorsHeaders({ error: 'environment variables are required' }, 500);
   }
 
@@ -31,13 +34,21 @@ exports.handler = async (event) => {
   let result = null;
   try {
     if (method === 'GET' && path === '/entries') {
-      result = await handleGet();
+      result = await handleGet(event);
     } else if (method === 'PUT' && path === '/entries') {
       result = await handlePut(event);
     } else if (method === 'POST' && path.startsWith('/entries')) {
       result = await handlePost(event);
     } else if (method === 'DELETE' && path.startsWith('/entries')) {
       result = await handleDelete(event);
+    } else if (method === 'GET' && path === '/categories') {
+      result = await handleGetCategories();
+    } else if (method === 'PUT' && path === '/categories') {
+      result = await handlePutCategory(event);
+    } else if (method === 'POST' && path.startsWith('/categories')) {
+      result = await handlePostCategory(event);
+    } else if (method === 'DELETE' && path.startsWith('/categories')) {
+      result = await handleDeleteCategory(event);
     } else if (method === 'POST' && path === '/publish') {
       result = await handlePublish();
     } else {
@@ -50,29 +61,81 @@ exports.handler = async (event) => {
   return addCorsHeaders(result);
 };
 
-// Handle GET: return all entries from DynamoDB
-const handleGet = async () => {
-  const params = {
-    TableName: TABLE_NAME
-  };
+// Turn a category name into a URL-friendly slug
+const slugify = (name) => {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return base || 'category';
+};
 
-  const data = await dynamoDb.scan(params).promise();
+// Generate a slug guaranteed to be unique among existing categories (excluding excludeId, for renames)
+const uniqueSlug = (name, existingCategories, excludeId) => {
+  const base = slugify(name);
+  const taken = new Set(
+    existingCategories.filter((c) => c.id !== excludeId).map((c) => c.slug)
+  );
+  if (!taken.has(base)) {
+    return base;
+  }
+  let suffix = 2;
+  while (taken.has(`${base}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${base}-${suffix}`;
+};
+
+// Find a category by its slug; returns undefined if not found
+const resolveCategoryBySlug = async (slug) => {
+  const data = await dynamoDb.scan({ TableName: CATEGORIES_TABLE_NAME }).promise();
+  return (data.Items ?? []).find((c) => c.slug === slug);
+};
+
+// Handle GET: return entries from DynamoDB, optionally filtered by category slug
+const handleGet = async (event) => {
+  const categorySlug = event.queryStringParameters?.category;
+
+  if (!categorySlug) {
+    const data = await dynamoDb.scan({ TableName: TABLE_NAME }).promise();
+    return { entries: data.Items };
+  }
+
+  const category = await resolveCategoryBySlug(categorySlug);
+  if (!category) {
+    return { entries: [] };
+  }
+
+  const data = await dynamoDb.scan({
+    TableName: TABLE_NAME,
+    FilterExpression: 'categoryId = :cid',
+    ExpressionAttributeValues: { ':cid': category.id }
+  }).promise();
   return { entries: data.Items };
 };
 
 
 const handlePut = async (event) => {
   const formData = JSON.parse(event.body);
-  const { name, mimeType } = formData;
+  const { name, mimeType, categorySlug } = formData;
 
   // Parameter validation
   if (!name || !mimeType) {
     return { error: 'Name and MIME type are required' };
   }
 
+  if (!categorySlug) {
+    return { error: 'Category is required' };
+  }
+
   // Validate the MIME type (either image/jpeg or image/png)
   if (!['image/jpeg', 'image/png'].includes(mimeType)) {
     return { error: 'Invalid MIME type. Only image/jpeg and image/png are allowed.' };
+  }
+
+  const category = await resolveCategoryBySlug(categorySlug);
+  if (!category) {
+    return { error: 'Invalid category' };
   }
 
   const id = uuid();
@@ -105,6 +168,7 @@ const handlePut = async (event) => {
     url: `${CLOUDFRONT_URL}/${baseImageKey}`,  // CloudFront URL for the original image
     thumbnailUrl: `${CLOUDFRONT_URL}/${thumbnailKey}`,  // CloudFront URL for the thumbnail
     order: maxOrder + 1,
+    categoryId: category.id,
   };
 
   // Save new entry to DynamoDB
@@ -233,33 +297,158 @@ const handlePost = async (event) => {
   return { message: 'Entry updated successfully', entry: updatedEntry };
 };
 
-// Handle publish: Retrieve entries, minify, and save to S3 as data.json
+// Handle GET: return all categories from DynamoDB
+const handleGetCategories = async () => {
+  const data = await dynamoDb.scan({ TableName: CATEGORIES_TABLE_NAME }).promise();
+  return { categories: data.Items };
+};
+
+// Handle PUT: create a new category
+const handlePutCategory = async (event) => {
+  const { name } = JSON.parse(event.body);
+
+  if (!name) {
+    return { error: 'Name is required' };
+  }
+
+  const existingCategories = await dynamoDb.scan({ TableName: CATEGORIES_TABLE_NAME }).promise();
+  const items = existingCategories.Items ?? [];
+  const maxOrder = items.reduce((max, category) => (category.order > max ? category.order : max), 0);
+
+  const newCategory = {
+    id: uuid(),
+    name,
+    slug: uniqueSlug(name, items),
+    order: maxOrder + 1,
+  };
+
+  await dynamoDb.put({ TableName: CATEGORIES_TABLE_NAME, Item: newCategory }).promise();
+
+  return { message: 'Category created successfully', category: newCategory };
+};
+
+// Handle POST: update an existing category (rename, re-slug, reorder)
+const handlePostCategory = async (event) => {
+  const { id, name, slug, order } = JSON.parse(event.body);
+
+  if (!id) {
+    return { error: 'ID is required to update a category' };
+  }
+
+  const currentCategory = await dynamoDb.get({ TableName: CATEGORIES_TABLE_NAME, Key: { id } }).promise();
+  if (!currentCategory.Item) {
+    return { message: 'Category not found' };
+  }
+
+  const existingCategories = await dynamoDb.scan({ TableName: CATEGORIES_TABLE_NAME }).promise();
+  const items = existingCategories.Items ?? [];
+
+  let newSlug = currentCategory.Item.slug;
+  if (slug) {
+    newSlug = uniqueSlug(slug, items, id);
+  } else if (name && name !== currentCategory.Item.name) {
+    newSlug = uniqueSlug(name, items, id);
+  }
+
+  const updatedCategory = {
+    ...currentCategory.Item,
+    name: name || currentCategory.Item.name,
+    slug: newSlug,
+    order: order || currentCategory.Item.order,
+  };
+
+  if (order && order !== currentCategory.Item.order) {
+    const categoryWithDesiredOrder = items.find(item => item.order === order);
+
+    if (categoryWithDesiredOrder) {
+      const swappedCategory = { ...categoryWithDesiredOrder, order: currentCategory.Item.order };
+      await dynamoDb.put({ TableName: CATEGORIES_TABLE_NAME, Item: swappedCategory }).promise();
+    }
+  }
+
+  await dynamoDb.put({ TableName: CATEGORIES_TABLE_NAME, Item: updatedCategory }).promise();
+
+  return { message: 'Category updated successfully', category: updatedCategory };
+};
+
+// Handle DELETE: delete a category, blocked if any entries still reference it
+const handleDeleteCategory = async (event) => {
+  const { id } = JSON.parse(event.body);
+
+  if (!id) {
+    throw new Error('ID is required to delete a category');
+  }
+
+  const category = await dynamoDb.get({ TableName: CATEGORIES_TABLE_NAME, Key: { id } }).promise();
+  if (!category.Item) {
+    throw new Error('Category not found');
+  }
+
+  const referencingEntries = await dynamoDb.scan({
+    TableName: TABLE_NAME,
+    FilterExpression: 'categoryId = :cid',
+    ExpressionAttributeValues: { ':cid': id },
+    Select: 'COUNT',
+  }).promise();
+
+  if (referencingEntries.Count > 0) {
+    const noun = referencingEntries.Count === 1 ? 'entry' : 'entries';
+    throw new Error(`Cannot delete category "${category.Item.name}": ${referencingEntries.Count} ${noun} still reference it`);
+  }
+
+  await dynamoDb.delete({ TableName: CATEGORIES_TABLE_NAME, Key: { id } }).promise();
+
+  return { message: 'Category deleted successfully' };
+};
+
+// Handle publish: Retrieve categories and entries, minify, and save to S3 as data.json
 const handlePublish = async () => {
   try {
-    // Step 1: Fetch all entries from DynamoDB
-    const params = {
-      TableName: TABLE_NAME
-    };
+    const [categoriesData, entriesData] = await Promise.all([
+      dynamoDb.scan({ TableName: CATEGORIES_TABLE_NAME }).promise(),
+      dynamoDb.scan({ TableName: TABLE_NAME }).promise(),
+    ]);
 
-    const data = await dynamoDb.scan(params).promise();
-    const entries = data.Items ?? [];
+    const categories = categoriesData.Items ?? [];
+    const entries = entriesData.Items ?? [];
+    const idToSlug = Object.fromEntries(categories.map((c) => [c.id, c.slug]));
 
-    const minifiedEntries = entries.map(entry => ({
-      n: entry.name,              
-      i: entry.url.replace(CLOUDFRONT_URL + '/', ''),  
-      o: entry.order              
+    const minifiedCategories = categories.map(category => ({
+      s: category.slug,
+      n: category.name,
+      o: category.order,
     }));
 
-    const jsonData = JSON.stringify(minifiedEntries);
+    const minifiedEntries = entries.map(entry => ({
+      n: entry.name,
+      i: entry.url.replace(CLOUDFRONT_URL + '/', ''),
+      o: entry.order,
+      c: idToSlug[entry.categoryId],
+    }));
 
-    const s3Params = {
+    const jsonData = JSON.stringify({ categories: minifiedCategories, entries: minifiedEntries });
+
+    await s3.putObject({
       Bucket: BUCKET_NAME,
-      Key: 'data.json',            
-      Body: jsonData,              
-      ContentType: 'application/json' 
-    };
+      Key: 'data.json',
+      Body: jsonData,
+      ContentType: 'application/json'
+    }).promise();
 
-    await s3.putObject(s3Params).promise();
+    if (CLOUDFRONT_DISTRIBUTION_ID) {
+      try {
+        await cloudfront.createInvalidation({
+          DistributionId: CLOUDFRONT_DISTRIBUTION_ID,
+          InvalidationBatch: {
+            Paths: { Quantity: 1, Items: ['/data.json'] },
+            CallerReference: `publish-${Date.now()}`,
+          },
+        }).promise();
+      } catch (error) {
+        console.error('Error invalidating CloudFront cache for data.json:', error);
+        // Proceed even if invalidation fails; data.json is already updated in S3
+      }
+    }
 
     return { message: 'Data published successfully', itemCount: minifiedEntries.length };
   } catch (error) {
