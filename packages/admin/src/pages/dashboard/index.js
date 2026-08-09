@@ -30,7 +30,7 @@ export const Dashboard = () => {
                 if (match) setCategoryName(match.name);
             });
         }
-    }, [slug]);
+    }, [slug, location.state?.name]);
 
     const handleOrderChange = async (id, newOrder) => {
         setLoading(true);
