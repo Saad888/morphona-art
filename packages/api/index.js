@@ -37,6 +37,8 @@ exports.handler = async (event) => {
       result = await handleGet(event);
     } else if (method === 'PUT' && path === '/entries') {
       result = await handlePut(event);
+    } else if (method === 'POST' && path === '/entries/thumbnail-url') {
+      result = await handleRequestThumbnailUpload(event);
     } else if (method === 'POST' && path.startsWith('/entries')) {
       result = await handlePost(event);
     } else if (method === 'DELETE' && path.startsWith('/entries')) {
@@ -164,7 +166,7 @@ const handlePut = async (event) => {
     Bucket: BUCKET_NAME,
     Key: thumbnailKey,
     Expires: 60 * 5,  // URL valid for 5 minutes
-    ContentType: mimeType,  // Set the MIME type dynamically based on the request
+    ContentType: 'image/jpeg',  // Thumbnails are always generated as JPEG (client-side crop), regardless of the original image's format
   });
 
   // Get the current entries in this category to determine the largest order
@@ -305,6 +307,48 @@ const handlePost = async (event) => {
   await dynamoDb.put(updateParams).promise();
 
   return { message: 'Entry updated successfully', entry: updatedEntry };
+};
+
+// Handle POST /entries/thumbnail-url: issue a fresh signed PUT URL for an existing
+// entry's thumbnail (same S3 key as today, overwritten in place) and invalidate the
+// CloudFront cache for that path so the new crop shows up immediately.
+const handleRequestThumbnailUpload = async (event) => {
+  const { id } = JSON.parse(event.body);
+
+  if (!id) {
+    return { error: 'ID is required to request a thumbnail upload URL' };
+  }
+
+  const entry = await dynamoDb.get({ TableName: TABLE_NAME, Key: { id } }).promise();
+  if (!entry.Item) {
+    return { message: 'Entry not found' };
+  }
+
+  const thumbnailKey = entry.Item.thumbnailUrl.split('/').pop();
+
+  const thumbnailUploadUrl = s3.getSignedUrl('putObject', {
+    Bucket: BUCKET_NAME,
+    Key: thumbnailKey,
+    Expires: 60 * 5,
+    ContentType: 'image/jpeg',
+  });
+
+  if (CLOUDFRONT_DISTRIBUTION_ID) {
+    try {
+      await cloudfront.createInvalidation({
+        DistributionId: CLOUDFRONT_DISTRIBUTION_ID,
+        InvalidationBatch: {
+          Paths: { Quantity: 1, Items: [`/${encodeURIComponent(thumbnailKey)}`] },
+          CallerReference: `thumbnail-${id}-${Date.now()}`,
+        },
+      }).promise();
+    } catch (error) {
+      console.error(`Error invalidating CloudFront cache for ${thumbnailKey}:`, error);
+      // Proceed even if invalidation fails; the client still uploads the new thumbnail
+    }
+  }
+
+  return { thumbnailUploadUrl };
 };
 
 // Handle GET: return all categories from DynamoDB

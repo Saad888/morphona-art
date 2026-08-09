@@ -21,8 +21,9 @@ export const uploadImage = async (formData) => {
 
     const data = await response.json();
 
-    // Return the signed URLs for the image and thumbnail
+    // Return the new entry's id (needed for cleanup if the S3 upload fails) and the signed URLs
     return {
+      id: data.entry.id,
       imageUrl: data.signedUrls.imageUrl,
       thumbnailUrl: data.signedUrls.thumbnailUrl,
     };
@@ -123,6 +124,31 @@ export const publishData = async () => {
     return await response.json();  // Assuming the API returns a success message
   } catch (error) {
     console.error('Error publishing data:', error);
+    throw error;
+  }
+};
+
+// Function to request a fresh signed URL for re-uploading an existing entry's thumbnail
+export const requestThumbnailUploadUrl = async (id) => {
+  try {
+    const idToken = await getIdToken();
+
+    const response = await fetch(`${URL}/entries/thumbnail-url`, {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json'
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get thumbnail upload URL');
+    }
+
+    return (await response.json()).thumbnailUploadUrl;
+  } catch (error) {
+    console.error('Error requesting thumbnail upload URL:', error);
     throw error;
   }
 };

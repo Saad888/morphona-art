@@ -1,27 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Image, Loader, Input, Form, Segment } from 'semantic-ui-react';
 import 'semantic-ui-css/semantic.min.css';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { NavButton } from '../../common/navButton.js';
 import { getImages, updateImage, deleteImage, publishData, getCategories } from '../../services/api.js';
 
 export const Dashboard = () => {
     const { slug } = useParams();
     const location = useLocation();
+    const navigate = useNavigate();
     const [entries, setEntries] = useState([]);
     const [categoryName, setCategoryName] = useState(location.state?.name ?? slug);
     const [loading, setLoading] = useState(false);
     const [editMode, setEditMode] = useState(null); // Track which entry is in edit mode
     const [editedData, setEditedData] = useState({ name: '' });
+    // Bumped on every reload so thumbnail <img> srcs change and bypass any stale
+    // browser-cached copy - thumbnails are overwritten in place at the same S3 key
+    // when re-cropped, so the URL alone doesn't change even though the file did.
+    const [thumbnailCacheBust, setThumbnailCacheBust] = useState(Date.now());
+
+    const loadEntries = useCallback(async () => {
+        setLoading(true);
+        const result = await getImages(slug);
+        setEntries(result.sort((a, b) => b.order - a.order)); // Sort entries by order DESC
+        setThumbnailCacheBust(Date.now());
+        setLoading(false);
+    }, [slug]);
 
     useEffect(() => {
-        const getImageData = async () => {
-            setLoading(true);
-            const result = await getImages(slug);
-            setEntries(result.sort((a, b) => b.order - a.order)); // Sort entries by order DESC
-            setLoading(false);
-        };
-        getImageData();
+        loadEntries();
 
         // Deep-links/refreshes arrive without location.state - resolve the display name
         if (!location.state?.name) {
@@ -30,14 +37,12 @@ export const Dashboard = () => {
                 if (match) setCategoryName(match.name);
             });
         }
-    }, [slug, location.state?.name]);
+    }, [slug, location.state?.name, loadEntries]);
 
     const handleOrderChange = async (id, newOrder) => {
         setLoading(true);
         await updateImage(id, { order: newOrder });
-        const result = await getImages(slug);
-        setEntries(result.sort((a, b) => b.order - a.order));
-        setLoading(false);
+        await loadEntries();
     };
 
     const handleEditClick = (entry) => {
@@ -48,19 +53,15 @@ export const Dashboard = () => {
     const handleSaveClick = async (id) => {
         setLoading(true);
         await updateImage(id, { name: editedData.name });
-        const result = await getImages(slug);
-        setEntries(result.sort((a, b) => b.order - a.order));
         setEditMode(null); // Exit edit mode
-        setLoading(false);
+        await loadEntries();
     };
 
     const handleDeleteClick = async (id) => {
         if (window.confirm('Are you sure you want to delete this entry?')) {
             setLoading(true);
             await deleteImage(id);
-            const result = await getImages(slug);
-            setEntries(result.sort((a, b) => b.order - a.order));
-            setLoading(false);
+            await loadEntries();
         }
     };
 
@@ -130,7 +131,7 @@ export const Dashboard = () => {
                         <div style={{ marginRight: '20px', fontWeight: 'bold' }}>{index + 1}</div>
                         <div style={{ marginRight: '10px' }}>
                             <Image
-                                src={entry.thumbnailUrl}
+                                src={`${entry.thumbnailUrl}?cb=${thumbnailCacheBust}`}
                                 size="small"
                                 style={{ cursor: 'pointer', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}
                                 onClick={() => window.open(entry.url, '_blank')}
@@ -186,6 +187,13 @@ export const Dashboard = () => {
                                 <>
                                     <Button color="yellow" onClick={() => handleEditClick(entry)} size="tiny">
                                         Edit
+                                    </Button>
+                                    <Button
+                                        color="teal"
+                                        onClick={() => navigate(`/category/${slug}/edit-thumbnail/${entry.id}`, { state: { entry } })}
+                                        size="tiny"
+                                    >
+                                        Thumbnail
                                     </Button>
                                     <Button color="red" onClick={() => handleDeleteClick(entry.id)} size="tiny">
                                         Delete

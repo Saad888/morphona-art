@@ -5,6 +5,7 @@ import { CategoryListPage } from './pages/categories/index.js';
 import { isUserAuthenticated } from './services/cognito';
 import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { CreateEntryPage } from './pages/create/index.js';
+import { EditThumbnailPage } from './pages/editThumbnail/index.js';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -31,6 +32,7 @@ function App() {
           <Route path="/" element={<CategoryListPage onLogout={() => setIsAuthenticated(false)} />} />
           <Route path="/category/:slug" element={<Dashboard />} />
           <Route path="/category/:slug/create" element={<CreateEntryPage />} />
+          <Route path="/category/:slug/edit-thumbnail/:id" element={<EditThumbnailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

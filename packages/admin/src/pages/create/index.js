@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
-import { Form, Button, Image, Segment, Header, Icon, Dimmer, Loader, Message } from 'semantic-ui-react';
+import { Form, Button, Header, Icon, Dimmer, Loader, Message, Segment } from 'semantic-ui-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { uploadImage, deleteImage } from '../../services/api.js';
+import { uploadToS3 } from '../../services/s3.js';
+import { cropImageToBlob, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT } from '../../common/cropImage.js';
+import { ThumbnailCropper } from '../../common/thumbnailCropper.js';
 import imageCompression from 'browser-image-compression';
 
 export const CreateEntryPage = () => {
   const { slug } = useParams();
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -18,48 +24,59 @@ export const CreateEntryPage = () => {
     if (file) {
       setImage(file);
       setPreview(URL.createObjectURL(file));
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
       setErrorMessage('');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (image && name) {
+    if (image && name && croppedAreaPixels) {
       setLoading(true);
-  
+      let entryId = null;
+
       try {
         // Get the image MIME type (e.g., 'image/jpeg' or 'image/png')
         const mimeType = image.type;
-  
+
         // Get signed URLs from the API with the image MIME type
-        const { imageUrl, thumbnailUrl } = await uploadImage({ name, mimeType, categorySlug: slug });
-  
-        // Compress the image for thumbnail
+        const { id, imageUrl, thumbnailUrl } = await uploadImage({ name, mimeType, categorySlug: slug });
+        entryId = id;
+
+        // Generate the thumbnail from the selected crop region, then run it through
+        // the same size budget as before as a safety net
+        const croppedBlob = await cropImageToBlob(preview, croppedAreaPixels, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT);
         const options = {
           maxSizeMB: 1, // Reduce to under 1 MB
-          maxWidthOrHeight: 1024, // Maximum size for the thumbnail
+          maxWidthOrHeight: THUMBNAIL_WIDTH,
           useWebWorker: true,
         };
-        const compressedThumbnail = await imageCompression(image, options);
-  
-        // Upload the compressed thumbnail
+        const compressedThumbnail = await imageCompression(croppedBlob, options);
+
+        // Upload the cropped thumbnail
         await uploadToS3(thumbnailUrl, compressedThumbnail);
-  
-        // Upload the original image
+
+        // Upload the original image (never cropped)
         await uploadToS3(imageUrl, image);
-  
+
         alert('Upload successful!');
         navigate(`/category/${slug}`);
       } catch (error) {
         console.error('Error during upload:', error);
-        setErrorMessage('Upload failed. Attempting to delete metadata.');
-  
-        try {
-          await deleteImage({ name });
-          alert('Metadata deleted.');
-        } catch (deleteError) {
-          console.error('Error during metadata deletion:', deleteError);
-          setErrorMessage('Failed to delete metadata.');
+
+        if (entryId) {
+          setErrorMessage('Upload failed. Attempting to delete metadata.');
+          try {
+            await deleteImage(entryId);
+            alert('Metadata deleted.');
+          } catch (deleteError) {
+            console.error('Error during metadata deletion:', deleteError);
+            setErrorMessage('Failed to delete metadata.');
+          }
+        } else {
+          setErrorMessage('Upload failed before an entry was created. Nothing to clean up.');
         }
       } finally {
         setLoading(false);
@@ -70,24 +87,14 @@ export const CreateEntryPage = () => {
   const clearImage = () => {
     setImage(null);
     setPreview(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedAreaPixels(null);
     setErrorMessage('');
   };
 
   const triggerFileSelect = () => {
     document.getElementById('fileInput').click();
-  };
-
-  const uploadToS3 = async (url, file) => {
-    const response = await fetch(url, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': file.type, // Make sure the file is uploaded with the correct MIME type
-      },
-    });
-    if (!response.ok) {
-      throw new Error('Failed to upload to S3');
-    }
   };
 
   return (
@@ -120,9 +127,17 @@ export const CreateEntryPage = () => {
           </Form.Field>
         )}
         {preview && (
-          <Segment textAlign="center" style={{ height: '500px' }}>
-            <Image src={preview} size="large" centered style={{ height: '100%', objectFit: 'contain' }} />
-          </Segment>
+          <Form.Field>
+            <label>Select the thumbnail crop</label>
+            <ThumbnailCropper
+              imageSrc={preview}
+              crop={crop}
+              zoom={zoom}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+            />
+          </Form.Field>
         )}
         <Form.Field>
           <label>Name</label>
@@ -137,7 +152,7 @@ export const CreateEntryPage = () => {
           type="submit"
           primary
           color="green"
-          disabled={!image || !name || errorMessage}
+          disabled={!image || !name || !croppedAreaPixels || errorMessage}
         >
           Submit
         </Button>
